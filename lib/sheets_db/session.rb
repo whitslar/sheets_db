@@ -26,5 +26,9 @@ module SheetsDB
     def initialize(google_drive_session)
       @google_drive_session = google_drive_session
     end
+
+    def raw_file_by_id(id)
+      @google_drive_session.file_by_id(id)
+    end
   end
 end
