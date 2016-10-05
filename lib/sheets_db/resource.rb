@@ -18,6 +18,9 @@ module SheetsDB
       end
     end
 
+    extend Forwardable
+    def_delegators :google_drive_resource, :id, :name
+
     attr_reader :google_drive_resource
 
     def initialize(google_drive_resource)
