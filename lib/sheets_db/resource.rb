@@ -20,6 +20,8 @@ module SheetsDB
 
     extend Forwardable
     def_delegators :google_drive_resource, :id, :name
+    def_delegator :google_drive_resource, :created_time, :created_at
+    def_delegator :google_drive_resource, :modified_time, :updated_at
 
     attr_reader :google_drive_resource
 

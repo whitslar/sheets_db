@@ -21,4 +21,18 @@ RSpec.describe SheetsDB::Resource do
       expect(subject.name).to eq(:foo)
     end
   end
+
+  describe "#created_at" do
+    it "delegates to raw resource #created_time" do
+      allow(raw_file).to receive(:created_time).and_return(:foo)
+      expect(subject.created_at).to eq(:foo)
+    end
+  end
+
+  describe "#updated_at" do
+    it "delegates to raw resource #modified_time" do
+      allow(raw_file).to receive(:modified_time).and_return(:foo)
+      expect(subject.updated_at).to eq(:foo)
+    end
+  end
 end
