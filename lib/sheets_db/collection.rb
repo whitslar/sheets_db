@@ -4,7 +4,7 @@ module SheetsDB
 
     set_resource_type GoogleDrive::Collection
 
-    def self.collects(resource, type:)
+    def self.has_many(resource, type:)
       retrieval_method = association_retrieval_method_for_type(type)
       register_association(resource, type: type, retrieval_method: retrieval_method)
       define_method(resource) do
