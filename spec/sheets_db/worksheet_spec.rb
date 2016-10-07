@@ -6,18 +6,18 @@ RSpec.describe SheetsDB::Worksheet do
       ["2", "Balaji", "n/a", "Rhutoni"]
     ])
   }
-  let(:row_class) { Class.new }
+  let(:row_class) { SheetsDB::Worksheet::Row }
   subject { described_class.new(worksheet: raw_worksheet, type: row_class) }
 
   describe "#all" do
     it "returns instances of type for each row in worksheet" do
-      allow(row_class).to receive(:new).
-        with(worksheet: subject, id: "1", first_name: "Anna", last_name: "Scoofles").
-        and_return(:anna)
-      allow(row_class).to receive(:new).
-        with(worksheet: subject, id: "2", first_name: "Balaji", last_name: "Rhutoni").
-        and_return(:balaji)
-      expect(subject.all).to eq([:anna, :balaji])
+      expect(subject.all.map(&:id)).to eq([1, 2])
+    end
+  end
+
+  describe "#find_by_id" do
+    it "returns row with given id" do
+      expect(subject.find_by_id(2).instance_variable_get(:@first_name)).to eq("Balaji")
     end
   end
 

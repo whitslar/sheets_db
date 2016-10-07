@@ -3,6 +3,8 @@ require_relative "worksheet/row"
 
 module SheetsDB
   class Worksheet
+    include Enumerable
+
     attr_reader :worksheet, :type
 
     def initialize(worksheet:, type:)
@@ -27,10 +29,19 @@ module SheetsDB
       worksheet.rows.drop(1)
     end
 
+    def each
+      return to_enum(:each) unless block_given?
+      data_rows.each_with_index do |row, i|
+        yield type.new(worksheet: self, row_position: i + 2, **arguments_from_row(row))
+      end
+    end
+
     def all
-      data_rows.each_with_index.map { |row, i|
-        type.new(worksheet: self, row_position: i + 2, **arguments_from_row(row))
-      }
+      to_a
+    end
+
+    def find_by_id(id)
+      detect { |model| model.id == id }
     end
 
     def arguments_from_row(row)
