@@ -8,7 +8,8 @@ module SheetsDB
       register_association(resource, sheet_name: sheet_name, type: type)
       define_method(resource) do
         Worksheet.new(
-          worksheet: google_drive_resource.worksheet_by_title(sheet_name),
+          spreadsheet: self,
+          google_drive_resource: google_drive_resource.worksheet_by_title(sheet_name),
           type: type
         )
       end

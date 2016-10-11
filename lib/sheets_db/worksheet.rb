@@ -5,34 +5,41 @@ module SheetsDB
   class Worksheet
     include Enumerable
 
-    attr_reader :worksheet, :type
+    attr_reader :spreadsheet, :google_drive_resource, :type
 
-    def initialize(worksheet:, type:)
-      @worksheet = worksheet
+    def initialize(spreadsheet:, google_drive_resource:, type:)
+      @spreadsheet = spreadsheet
+      @google_drive_resource = google_drive_resource
       @type = type
     end
 
     def ==(other)
       other.is_a?(self.class) &&
-        other.worksheet == worksheet &&
+        other.google_drive_resource == google_drive_resource &&
         other.type == type
     end
 
     def columns
-      @columns ||= worksheet.rows.first.each_with_index.map { |name, i|
-        name == "" ? nil :
-          Column.new(name: name.to_sym, column_position: i + 1)
-      }.compact
+      @columns ||= begin
+        {}.tap { |directory|
+          google_drive_resource.rows.first.each_with_index do |name, i|
+            unless name == ""
+              directory[name.to_sym] = Column.new(name: name.to_sym, column_position: i + 1)
+            end
+          end
+        }
+      end
     end
 
-    def data_rows
-      worksheet.rows.drop(1)
+    def attribute_at_row_position(column_name, row_position:)
+      column = columns[column_name]
+      google_drive_resource[row_position, column.column_position]
     end
 
     def each
       return to_enum(:each) unless block_given?
-      data_rows.each_with_index do |row, i|
-        yield type.new(worksheet: self, row_position: i + 2, **arguments_from_row(row))
+      (google_drive_resource.num_rows - 1).times do |i|
+        yield type.new(worksheet: self, row_position: i + 2)
       end
     end
 
@@ -44,9 +51,8 @@ module SheetsDB
       detect { |model| model.id == id }
     end
 
-    def arguments_from_row(row)
-      relevant_row_indices = columns.map(&:column_position).map { |pos| pos - 1 }
-      Hash[columns.map(&:name).zip(row.values_at(*relevant_row_indices))]
+    def reload!
+      google_drive_resource.reload
     end
   end
 end

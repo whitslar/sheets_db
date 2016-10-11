@@ -8,8 +8,10 @@ module SheetsDB
       retrieval_method = association_retrieval_method_for_type(type)
       register_association(resource, type: type, retrieval_method: retrieval_method)
       define_method(resource) do
-        associations = google_drive_resource.send(retrieval_method)
-        associations.map { |raw| type.new(raw) }
+        result = instance_variable_get(:"@#{resource}")
+        result || instance_variable_set(:"@#{resource}",
+          google_drive_resource.send(retrieval_method).map { |raw| type.new(raw) }
+        )
       end
     end
 

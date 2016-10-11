@@ -23,7 +23,7 @@ RSpec.describe SheetsDB::Spreadsheet do
         with("Widgets").
         and_return(:the_worksheet)
       expect(subject.widgets).to eq(
-        SheetsDB::Worksheet.new(worksheet: :the_worksheet, type: :collection_class)
+        SheetsDB::Worksheet.new(spreadsheet: subject, google_drive_resource: :the_worksheet, type: :collection_class)
       )
     end
 
