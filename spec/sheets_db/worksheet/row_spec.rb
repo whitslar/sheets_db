@@ -1,6 +1,7 @@
 RSpec.describe SheetsDB::Worksheet::Row do
   let(:row_class) { Class.new(described_class) }
-  let(:worksheet) { SheetsDB::Worksheet.new(spreadsheet: :a_spreadsheet, google_drive_resource: :a_worksheet, type: row_class) }
+  let(:spreadsheet) { SheetsDB::Spreadsheet.new(google_drive_resource: :a_spreadsheet) }
+  let(:worksheet) { SheetsDB::Worksheet.new(spreadsheet: spreadsheet, google_drive_resource: :a_worksheet, type: row_class) }
   subject { row_class.new(worksheet: worksheet, row_position: 3) }
 
   describe ".attribute" do  
@@ -59,6 +60,25 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe ".has_one" do
+    before(:each) do
+      row_class.has_one :widget, from_collection: :widgets, key: :widget_id
+    end
+
+    it "sets up reader for association, delegating lookup to spreadsheet" do
+      allow(spreadsheet).to receive(:find_association_by_id).with(:widgets, 18).and_return(:the_widget)
+      allow(subject).to receive(:widget_id).and_return(18)
+      expect(subject.widget).to eq(:the_widget)
+    end
+
+    it "sets up writer that sets key and memoized association" do
+      the_widget = double(id: 14)
+      expect(subject).to receive(:widget_id=).with(14)
+      subject.widget = the_widget
+      expect(subject.widget).to eq(the_widget)
+    end
+  end
+
   describe "#convert_value" do
     it "returns nil if given a blank string" do
       expect(subject.convert_value("", :whatever)).to be_nil
@@ -102,6 +122,13 @@ RSpec.describe SheetsDB::Worksheet::Row do
         with(:the_staged_attributes, row_position: 3).ordered
       expect(subject).to receive(:reset_attributes_and_associations_cache).ordered
       subject.save!
+    end
+  end
+
+  describe "#spreadsheet" do
+    it "delegates to worksheet" do
+      allow(worksheet).to receive(:spreadsheet).and_return(:the_spreadsheet)
+      expect(subject.spreadsheet).to eq(:the_spreadsheet)
     end
   end
 end

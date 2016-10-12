@@ -28,7 +28,7 @@ module SheetsDB
           @association_definitions[name] = { from_collection: from_collection, key: key }
 
           define_method(name) do
-            @associations[name] ||= worksheet.spreadsheet.send(from_collection).find_by_id(send(key))
+            @associations[name] ||= spreadsheet.find_association_by_id(from_collection, send(key))
           end
 
           define_method("#{name}=") do |value|
@@ -104,6 +104,10 @@ module SheetsDB
         else
           raw_value
         end
+      end
+
+      def spreadsheet
+        worksheet.spreadsheet
       end
     end
   end

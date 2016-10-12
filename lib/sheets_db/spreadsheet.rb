@@ -22,5 +22,9 @@ module SheetsDB
       end
       @associations[resource] = [sheet_name, type]
     end
+
+    def find_association_by_id(association, id)
+      send(association).find_by_id(id)
+    end
   end
 end
