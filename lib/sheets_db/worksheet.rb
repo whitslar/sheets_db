@@ -36,6 +36,14 @@ module SheetsDB
       google_drive_resource[row_position, column.column_position]
     end
 
+    def update_attributes_at_row_position(staged_attributes, row_position:)
+      staged_attributes.each do |name, value|
+        column = columns[name]
+        google_drive_resource[row_position, column.column_position] = value
+      end
+      google_drive_resource.synchronize
+    end
+
     def each
       return to_enum(:each) unless block_given?
       (google_drive_resource.num_rows - 1).times do |i|

@@ -38,7 +38,7 @@ module SheetsDB
         end
       end
 
-      attr_reader :worksheet, :row_position, :attributes
+      attr_reader :worksheet, :row_position, :attributes, :associations
 
       attribute :id, type: Integer
 
@@ -75,20 +75,25 @@ module SheetsDB
 
       def reload!
         worksheet.reload!
+        reset_attributes_and_associations_cache
+      end
+
+      def save!
+        worksheet.update_attributes_at_row_position(staged_attributes, row_position: row_position)
+        reset_attributes_and_associations_cache
+      end
+
+      def reset_attributes_and_associations_cache
         @attributes = {}
         @associations = {}
       end
 
-      def save!
-        worksheet.columns.each do |name, column|
-          new_value = attributes[name] && attributes[name][:changed]
-          if new_value
-            worksheet.google_drive_resource[row_position, column.column_position] = new_value
-          end
-        end
-        worksheet.google_drive_resource.synchronize
-        @attributes = {}
-        @associations = {}
+      def staged_attributes
+        attributes.each_with_object({}) { |(key, value), hsh|
+          next unless value
+          hsh[key] = value[:changed] if value[:changed]
+          hsh
+        }
       end
 
       def convert_value(raw_value, type)

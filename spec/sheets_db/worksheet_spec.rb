@@ -19,6 +19,15 @@ RSpec.describe SheetsDB::Worksheet do
     end
   end
 
+  describe "#update_attributes_at_row_position" do
+    it "updates the given attributes using the google drive resource" do
+      expect(raw_worksheet).to receive(:[]=).with(2, 2, "Bonnie")
+      expect(raw_worksheet).to receive(:[]=).with(2, 4, "McFragile")
+      expect(raw_worksheet).to receive(:synchronize)
+      subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile" }, row_position: 2)
+    end
+  end
+
   describe "#all" do
     it "returns instances of type for each row in worksheet" do
       allow(row_class).to receive(:new).with(worksheet: subject, row_position: 2).
@@ -44,6 +53,13 @@ RSpec.describe SheetsDB::Worksheet do
         first_name: SheetsDB::Worksheet::Column.new(name: :first_name, column_position: 2),
         last_name: SheetsDB::Worksheet::Column.new(name: :last_name, column_position: 4)
       })
+    end
+  end
+
+  describe "#reload!" do
+    it "reloads the google_drive_resource worksheet" do
+      expect(raw_worksheet).to receive(:reload)
+      subject.reload!
     end
   end
 end
