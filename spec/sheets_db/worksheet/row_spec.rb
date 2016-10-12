@@ -4,6 +4,11 @@ RSpec.describe SheetsDB::Worksheet::Row do
   let(:worksheet) { SheetsDB::Worksheet.new(spreadsheet: spreadsheet, google_drive_resource: :a_worksheet, type: row_class) }
   subject { row_class.new(worksheet: worksheet, row_position: 3) }
 
+  before(:each) do
+    row_class.instance_variable_set(:@attribute_definitions, nil)
+    row_class.instance_variable_set(:@association_definitions, nil)
+  end
+
   describe ".attribute" do  
     before(:each) do
       allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3).once.and_return("1")
@@ -33,6 +38,12 @@ RSpec.describe SheetsDB::Worksheet::Row do
         subject.reload!
         expect(subject.foo).to eq("the_number_1")
       end
+
+      it "raises an error if attribute already registered" do
+        expect {
+          row_class.attribute :foo
+        }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+      end
     end
 
     context "with type specification" do
@@ -48,7 +59,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
     context "with collection attribute" do
       before(:each) do
-        row_class.attribute :things, type: :the_type, collection: true
+        row_class.attribute :things, type: :the_type, multiple: true
       end
 
       it "sets up reader for attribute, with type conversion" do
@@ -60,13 +71,38 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe ".has_many" do
+    before(:each) do
+      row_class.has_many :widgets, from_collection: :widgets, key: :widget_ids
+    end
+
+    it "sets up reader for association, delegating lookup to spreadsheet" do
+      allow(spreadsheet).to receive(:find_associations_by_ids).with(:widgets, [1, 2]).and_return([:w1, :w2])
+      allow(subject).to receive(:widget_ids).and_return([1, 2])
+      expect(subject.widgets).to eq([:w1, :w2])
+    end
+
+    it "sets up writer that sets key and memoized association" do
+      w1, w2 = double(id: 1), double(id: 2)
+      expect(subject).to receive(:widget_ids=).with([1, 2])
+      subject.widgets = [w1, w2]
+      expect(subject.widgets).to eq([w1, w2])
+    end
+
+    it "raises an error if attribute already registered" do
+      expect {
+        row_class.has_many :widgets, from_collection: :widgets, key: :widget_ids
+      }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+    end
+  end
+
   describe ".has_one" do
     before(:each) do
       row_class.has_one :widget, from_collection: :widgets, key: :widget_id
     end
 
     it "sets up reader for association, delegating lookup to spreadsheet" do
-      allow(spreadsheet).to receive(:find_association_by_id).with(:widgets, 18).and_return(:the_widget)
+      allow(spreadsheet).to receive(:find_associations_by_ids).with(:widgets, [18]).and_return([:the_widget])
       allow(subject).to receive(:widget_id).and_return(18)
       expect(subject.widget).to eq(:the_widget)
     end
@@ -76,6 +112,12 @@ RSpec.describe SheetsDB::Worksheet::Row do
       expect(subject).to receive(:widget_id=).with(14)
       subject.widget = the_widget
       expect(subject.widget).to eq(the_widget)
+    end
+
+    it "raises an error if attribute already registered" do
+      expect {
+        row_class.has_one :widget, from_collection: :widgets, key: :widget_id
+      }.to raise_error(described_class::AttributeAlreadyRegisteredError)
     end
   end
 

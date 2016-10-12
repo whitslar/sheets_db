@@ -56,7 +56,18 @@ module SheetsDB
     end
 
     def find_by_id(id)
-      detect { |model| model.id == id }
+      find_by_ids([id]).first
+    end
+
+    def find_by_ids(ids)
+      result = []
+      each do |model|
+        break if result.count == ids.count
+        if ids.include?(model.id)
+          result << model
+        end
+      end
+      result
     end
 
     def reload!

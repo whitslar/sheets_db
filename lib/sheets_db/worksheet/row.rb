@@ -1,6 +1,9 @@
 module SheetsDB
   class Worksheet
     class Row
+      class AttributeAlreadyRegisteredError < StandardError; end
+      class AssociationAlreadyRegisteredError < StandardError; end
+
       class << self
         attr_reader :attribute_definitions, :association_definitions
 
@@ -10,9 +13,8 @@ module SheetsDB
           subclass.instance_variable_set(:@association_definitions, association_definitions)
         end
 
-        def attribute(name, type: String, collection: false)
-          @attribute_definitions ||= {}
-          @attribute_definitions[name] = { type: type, collection: collection }
+        def attribute(name, type: String, multiple: false)
+          register_attribute(name, type: type, multiple: multiple)
 
           define_method(name) do
             get_modified_attribute(name) || get_persisted_attribute(name)
@@ -23,18 +25,37 @@ module SheetsDB
           end
         end
 
-        def has_one(name, from_collection:, key:)
-          @association_definitions ||= {}
-          @association_definitions[name] = { from_collection: from_collection, key: key }
+        def association(name, from_collection:, key:, multiple: false)
+          register_attribute(name, from_collection: from_collection, key: key, multiple: multiple)
 
           define_method(name) do
-            @associations[name] ||= spreadsheet.find_association_by_id(from_collection, send(key))
+            @associations[name] ||= begin
+              associations = spreadsheet.find_associations_by_ids(from_collection, Array(send(key)))
+              multiple ? associations : associations.first
+            end
           end
 
           define_method("#{name}=") do |value|
-            send("#{key}=", value.id)
-            @associations[name] ||= value
+            assignment_value = multiple ? value.map(&:id) : value.id
+            send("#{key}=", assignment_value)
+            @associations[name] = value
           end
+        end
+
+        def has_one(name, from_collection:, key:)
+          association(name, from_collection: from_collection, key: key, multiple: false)
+        end
+
+        def has_many(name, from_collection:, key:)
+          association(name, from_collection: from_collection, key: key, multiple: true)
+        end
+
+        def register_attribute(name, **options)
+          @attribute_definitions ||= {}
+          if @attribute_definitions.fetch(name, nil)
+            raise AttributeAlreadyRegisteredError
+          end
+          @attribute_definitions[name] = options
         end
       end
 
@@ -59,7 +80,7 @@ module SheetsDB
         attributes[name][:original] ||= begin
           attribute_definition = self.class.attribute_definitions.fetch(name, {})
           raw_value = worksheet.attribute_at_row_position(name, row_position: row_position)
-          if attribute_definition[:collection]
+          if attribute_definition[:multiple]
             raw_values = raw_value.split(/,\s*/)
             raw_values.map { |value| convert_value(value, attribute_definition[:type]) }
           else

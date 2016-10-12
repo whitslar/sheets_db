@@ -4,9 +4,10 @@ RSpec.describe SheetsDB::Worksheet do
       rows: [
         ["id", "first_name", "", "last_name"],
         ["1", "Anna", "", "Scoofles"],
-        ["2", "Balaji", "n/a", "Rhutoni"]
+        ["2", "Balaji", "n/a", "Rhutoni"],
+        ["3", "Snoof", "", "McDoorney"]
       ],
-      num_rows: 3
+      num_rows: 4
     )
   }
   let(:row_class) { SheetsDB::Worksheet::Row }
@@ -34,15 +35,30 @@ RSpec.describe SheetsDB::Worksheet do
         and_return(:row_2)
       allow(row_class).to receive(:new).with(worksheet: subject, row_position: 3).
         and_return(:row_3)
-      expect(subject.all).to eq([:row_2, :row_3])
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: 4).
+        and_return(:row_4)
+      expect(subject.all).to eq([:row_2, :row_3, :row_4])
     end
   end
 
   describe "#find_by_id" do
     it "returns row with given id" do
+      allow(subject).to receive(:find_by_ids).with([2]).and_return([:result])
+      expect(subject.find_by_id(2)).to eq(:result)
+    end
+
+    it "returns nil if id not found" do
+      allow(subject).to receive(:find_by_ids).with([2]).and_return([])
+      expect(subject.find_by_id(2)).to be_nil
+    end
+  end
+
+  describe "#find_by_ids" do
+    it "returns rows with given ids" do
       allow(raw_worksheet).to receive(:[]).with(2, 1).and_return("1")
       allow(raw_worksheet).to receive(:[]).with(3, 1).and_return("2")
-      expect(subject.find_by_id(2).row_position).to eq(3)
+      allow(raw_worksheet).to receive(:[]).with(4, 1).and_return("3")
+      expect(subject.find_by_ids([2, 3]).map(&:row_position)).to eq([3, 4])
     end
   end
 

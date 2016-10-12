@@ -36,11 +36,19 @@ RSpec.describe SheetsDB::Spreadsheet do
   end
 
   describe "#find_association_by_id" do
-    it "delegates find_by_id to the given resource" do
+    it "singular proxy for find_associations_by_ids" do
+      allow(subject).to receive(:find_associations_by_ids).
+        with(:widgets, [3]).and_return([:w3])
+      expect(subject.find_association_by_id(:widgets, 3)).to eq(:w3)
+    end
+  end
+
+  describe "#find_associations_by_ids" do
+    it "delegates find_by_ids to the given resource" do
       widget_proxy = instance_double(SheetsDB::Worksheet)
-      allow(widget_proxy).to receive(:find_by_id).with(3).and_return(:a_widget)
+      allow(widget_proxy).to receive(:find_by_ids).with([2, 3]).and_return([:w2, :w3])
       allow(subject).to receive(:widgets).and_return(widget_proxy)
-      expect(subject.find_association_by_id("widgets", 3)).to eq(:a_widget)
+      expect(subject.find_associations_by_ids(:widgets, [2, 3])).to eq([:w2, :w3])
     end
   end
 end
