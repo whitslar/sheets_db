@@ -31,9 +31,15 @@ module SheetsDB
       end
     end
 
-    def attribute_at_row_position(column_name, row_position:)
+    def attribute_at_row_position(column_name, row_position:, type: String, multiple: false)
       column = columns[column_name]
-      google_drive_resource[row_position, column.column_position]
+      raw_value = google_drive_resource[row_position, column.column_position]
+      if multiple
+        raw_values = raw_value.split(/,\s*/)
+        raw_values.map { |value| convert_value(value, type) }
+      else
+        convert_value(raw_value, type)
+      end
     end
 
     def update_attributes_at_row_position(staged_attributes, row_position:)
@@ -72,6 +78,16 @@ module SheetsDB
 
     def reload!
       google_drive_resource.reload
+    end
+
+    def convert_value(raw_value, type)
+      return nil if raw_value == ""
+      case type.to_s
+      when "Integer"
+        raw_value.to_i
+      else
+        raw_value
+      end
     end
   end
 end

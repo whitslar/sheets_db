@@ -9,15 +9,10 @@ RSpec.describe SheetsDB::Worksheet::Row do
     row_class.instance_variable_set(:@association_definitions, nil)
   end
 
-  describe ".attribute" do  
-    before(:each) do
-      allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3).once.and_return("1")
-      allow(worksheet).to receive(:attribute_at_row_position).with(:things, row_position: 3).and_return("1,2, 3")
-    end
-
+  describe ".attribute" do
     context "with basic attribute" do
       before(:each) do
-        allow(subject).to receive(:convert_value).with("1", String).and_return("the_number_1")
+        allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3, type: String, multiple: false).once.and_return("the_number_1")
         row_class.attribute :foo
       end
 
@@ -48,6 +43,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
     context "with type specification" do
       before(:each) do
+        allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3, type: :the_type, multiple: false).once.and_return("the_number_1")
         row_class.attribute :foo, type: :the_type
       end
 
@@ -59,13 +55,11 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
     context "with collection attribute" do
       before(:each) do
+        allow(worksheet).to receive(:attribute_at_row_position).with(:things, row_position: 3, type: :the_type, multiple: true).and_return([1, 2, 3])
         row_class.attribute :things, type: :the_type, multiple: true
       end
 
       it "sets up reader for attribute, with type conversion" do
-        allow(subject).to receive(:convert_value).with("1", :the_type).and_return(1)
-        allow(subject).to receive(:convert_value).with("2", :the_type).and_return(2)
-        allow(subject).to receive(:convert_value).with("3", :the_type).and_return(3)
         expect(subject.things).to eq([1, 2, 3])
       end
     end
@@ -118,20 +112,6 @@ RSpec.describe SheetsDB::Worksheet::Row do
       expect {
         row_class.has_one :widget, from_collection: :widgets, key: :widget_id
       }.to raise_error(described_class::AttributeAlreadyRegisteredError)
-    end
-  end
-
-  describe "#convert_value" do
-    it "returns nil if given a blank string" do
-      expect(subject.convert_value("", :whatever)).to be_nil
-    end
-
-    it "returns given value if unrecognized type" do
-      expect(subject.convert_value("something", :whatever)).to eq("something")
-    end
-
-    it "returns integer value if type is Integer" do
-      expect(subject.convert_value("14", Integer)).to eq(14)
     end
   end
 

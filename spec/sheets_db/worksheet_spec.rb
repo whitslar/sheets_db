@@ -18,6 +18,19 @@ RSpec.describe SheetsDB::Worksheet do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
       expect(subject.attribute_at_row_position(:first_name, row_position: 2)).to eq("Anna")
     end
+
+    it "converts the given value according to type" do
+      allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
+      allow(subject).to receive(:convert_value).with("Anna", :the_type).and_return("Deanna")
+      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: :the_type)).to eq("Deanna")
+    end
+
+    it "splits multiple return values" do
+      allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna, Banana")
+      allow(subject).to receive(:convert_value).with("Anna", :the_type).and_return("Deanna")
+      allow(subject).to receive(:convert_value).with("Banana", :the_type).and_return("The Banana")
+      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: :the_type, multiple: true)).to eq(["Deanna", "The Banana"])
+    end
   end
 
   describe "#update_attributes_at_row_position" do
@@ -55,6 +68,8 @@ RSpec.describe SheetsDB::Worksheet do
 
   describe "#find_by_ids" do
     it "returns rows with given ids" do
+      row_class.attribute :id, type: Integer
+
       allow(raw_worksheet).to receive(:[]).with(2, 1).and_return("1")
       allow(raw_worksheet).to receive(:[]).with(3, 1).and_return("2")
       allow(raw_worksheet).to receive(:[]).with(4, 1).and_return("3")
@@ -76,6 +91,20 @@ RSpec.describe SheetsDB::Worksheet do
     it "reloads the google_drive_resource worksheet" do
       expect(raw_worksheet).to receive(:reload)
       subject.reload!
+    end
+  end
+
+  describe "#convert_value" do
+    it "returns nil if given a blank string" do
+      expect(subject.convert_value("", :whatever)).to be_nil
+    end
+
+    it "returns given value if unrecognized type" do
+      expect(subject.convert_value("something", :whatever)).to eq("something")
+    end
+
+    it "returns integer value if type is Integer" do
+      expect(subject.convert_value("14", Integer)).to eq(14)
     end
   end
 end

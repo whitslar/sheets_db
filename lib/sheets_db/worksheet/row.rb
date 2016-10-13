@@ -61,8 +61,6 @@ module SheetsDB
 
       attr_reader :worksheet, :row_position, :attributes, :associations
 
-      attribute :id, type: Integer
-
       def initialize(worksheet:, row_position:)
         @worksheet = worksheet
         @row_position = row_position
@@ -79,13 +77,11 @@ module SheetsDB
         attributes[name] ||= {}
         attributes[name][:original] ||= begin
           attribute_definition = self.class.attribute_definitions.fetch(name, {})
-          raw_value = worksheet.attribute_at_row_position(name, row_position: row_position)
-          if attribute_definition[:multiple]
-            raw_values = raw_value.split(/,\s*/)
-            raw_values.map { |value| convert_value(value, attribute_definition[:type]) }
-          else
-            convert_value(raw_value, attribute_definition[:type])
-          end
+          worksheet.attribute_at_row_position(name,
+            row_position: row_position,
+            type: attribute_definition[:type],
+            multiple: attribute_definition[:multiple]
+          )
         end
       end
 
@@ -115,16 +111,6 @@ module SheetsDB
           hsh[key] = value[:changed] if value[:changed]
           hsh
         }
-      end
-
-      def convert_value(raw_value, type)
-        return nil if raw_value == ""
-        case type.to_s
-        when "Integer"
-          raw_value.to_i
-        else
-          raw_value
-        end
       end
 
       def spreadsheet
