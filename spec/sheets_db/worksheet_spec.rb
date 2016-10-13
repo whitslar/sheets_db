@@ -5,9 +5,10 @@ RSpec.describe SheetsDB::Worksheet do
         ["id", "first_name", "", "last_name"],
         ["1", "Anna", "", "Scoofles"],
         ["2", "Balaji", "n/a", "Rhutoni"],
-        ["3", "Snoof", "", "McDoorney"]
+        ["3", "Snoof", "", "McDoorney"],
+        ["4", "Anna", "", "Karenina"]
       ],
-      num_rows: 4
+      num_rows: 5
     )
   }
   let(:row_class) { SheetsDB::Worksheet::Row }
@@ -31,6 +32,12 @@ RSpec.describe SheetsDB::Worksheet do
       allow(subject).to receive(:convert_value).with("Banana", :the_type).and_return("The Banana")
       expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: :the_type, multiple: true)).to eq(["Deanna", "The Banana"])
     end
+
+    it "reads input values directly if type is DateTime" do
+      allow(raw_worksheet).to receive(:input_value).with(2, 2).and_return("April 15")
+      allow(subject).to receive(:convert_value).with("April 15", DateTime).and_return("4/15")
+      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: DateTime)).to eq("4/15")
+    end
   end
 
   describe "#update_attributes_at_row_position" do
@@ -50,7 +57,9 @@ RSpec.describe SheetsDB::Worksheet do
         and_return(:row_3)
       allow(row_class).to receive(:new).with(worksheet: subject, row_position: 4).
         and_return(:row_4)
-      expect(subject.all).to eq([:row_2, :row_3, :row_4])
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: 5).
+        and_return(:row_5)
+      expect(subject.all).to eq([:row_2, :row_3, :row_4, :row_5])
     end
   end
 
@@ -74,6 +83,18 @@ RSpec.describe SheetsDB::Worksheet do
       allow(raw_worksheet).to receive(:[]).with(3, 1).and_return("2")
       allow(raw_worksheet).to receive(:[]).with(4, 1).and_return("3")
       expect(subject.find_by_ids([2, 3]).map(&:row_position)).to eq([3, 4])
+    end
+  end
+
+  describe "#find_by_attribute" do
+    it "returns rows with matching attribute value" do
+      row_class.attribute :first_name
+
+      allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
+      allow(raw_worksheet).to receive(:[]).with(3, 2).and_return("Frank")
+      allow(raw_worksheet).to receive(:[]).with(4, 2).and_return("Parker")
+      allow(raw_worksheet).to receive(:[]).with(5, 2).and_return("Anna")
+      expect(subject.find_by_attribute(:first_name, "Anna").map(&:row_position)).to eq([2, 5])
     end
   end
 
@@ -105,6 +126,12 @@ RSpec.describe SheetsDB::Worksheet do
 
     it "returns integer value if type is Integer" do
       expect(subject.convert_value("14", Integer)).to eq(14)
+    end
+
+    it "returns DateTime value if type is DateTime" do
+      expect(subject.convert_value("4/15/2016 10:15:30", DateTime)).to eq(
+        DateTime.parse("2016-04-15 10:15:30")
+      )
     end
   end
 end

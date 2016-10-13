@@ -22,13 +22,13 @@ RSpec.describe SheetsDB::Worksheet::Row do
       end
 
       it "returns staged change if exists" do
-        subject.attributes[:foo] = { changed: "a_new_number" }
+        subject.loaded_attributes[:foo] = { changed: "a_new_number" }
         expect(subject.foo).to eq("a_new_number")
       end
 
       it "sets up writer for attribute that stages change but doesn't persist it" do
         subject.foo = "a_new_number"
-        expect(subject.attributes[:foo][:changed]).to eq("a_new_number")
+        expect(subject.loaded_attributes[:foo][:changed]).to eq("a_new_number")
         allow(worksheet).to receive(:reload!)
         subject.reload!
         expect(subject.foo).to eq("the_number_1")
@@ -115,9 +115,85 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe ".belongs_to_many" do
+    before(:each) do
+      row_class.attribute :id, type: Integer
+      row_class.belongs_to_many :widgets, from_collection: :widgets, foreign_key: :this_id
+    end
+
+    it "sets up reader for association, delegating lookup to spreadsheet" do
+      allow(spreadsheet).to receive(:find_associations_by_attribute).with(:widgets, :this_id, 18).and_return([:w1, :w2])
+      allow(subject).to receive(:id).and_return(18)
+      expect(subject.widgets).to eq([:w1, :w2])
+    end
+
+    it "sets up writer that sets foreign key and memoized association" do
+      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: false }}))
+      subject.id = 12
+      w1, w2 = double(this_id: 13), double(this_id: 14)
+      expect(w1).to receive(:this_id=).with(12)
+      expect(w2).to receive(:this_id=).with(12)
+      subject.widgets = [w1, w2]
+      expect(subject.widgets).to eq([w1, w2])
+    end
+
+    it "adds to foreign key if remote attribute is multiple" do
+      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: true }}))
+      subject.id = 12
+      w1, w2 = double(this_id: [13]), double(this_id: [14, 15])
+      expect(w1).to receive(:this_id=).with([13, 12])
+      expect(w2).to receive(:this_id=).with([14, 15, 12])
+      subject.widgets = [w1, w2]
+      expect(subject.widgets).to eq([w1, w2])
+    end
+
+    it "raises an error if attribute already registered" do
+      expect {
+        row_class.belongs_to_many :widgets, from_collection: :widgets, foreign_key: :this_id
+      }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+    end
+  end
+
+  describe ".belongs_to_one" do
+    before(:each) do
+      row_class.attribute :id, type: Integer
+      row_class.belongs_to_one :widget, from_collection: :widgets, foreign_key: :this_id
+    end
+
+    it "sets up reader for association, delegating lookup to spreadsheet" do
+      allow(spreadsheet).to receive(:find_associations_by_attribute).with(:widgets, :this_id, 18).and_return([:the_widget])
+      allow(subject).to receive(:id).and_return(18)
+      expect(subject.widget).to eq(:the_widget)
+    end
+
+    it "sets up writer that sets foreign key and memoized association" do
+      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: false }}))
+      subject.id = 12
+      the_widget = double(this_id: 14)
+      expect(the_widget).to receive(:this_id=).with(12)
+      subject.widget = the_widget
+      expect(subject.widget).to eq(the_widget)
+    end
+
+    it "adds to foreign key if remote attribute is multiple" do
+      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: true }}))
+      subject.id = 12
+      the_widget = double(this_id: [14, 15])
+      expect(the_widget).to receive(:this_id=).with([14, 15, 12])
+      subject.widget = the_widget
+      expect(subject.widget).to eq(the_widget)
+    end
+
+    it "raises an error if attribute already registered" do
+      expect {
+        row_class.belongs_to_one :widget, from_collection: :widgets, foreign_key: :widget_id
+      }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+    end
+  end
+
   describe "#staged_attributes" do
     it "returns hash of staged attribute names and values" do
-      allow(subject).to receive(:attributes).and_return({
+      allow(subject).to receive(:loaded_attributes).and_return({
         foo: {},
         bar: { original: 11, changed: nil },
         baz: { original: 6, changed: 14 },
@@ -129,11 +205,11 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
   describe "#reset_attributes_and_associations_cache" do
     it "clears the associations and attributes caches" do
-      subject.instance_variable_set(:@attributes, :some_attributes)
-      subject.instance_variable_set(:@associations, :some_associations)
+      subject.instance_variable_set(:@loaded_attributes, :some_attributes)
+      subject.instance_variable_set(:@loaded_associations, :some_associations)
       subject.reset_attributes_and_associations_cache
-      expect(subject.attributes).to be_empty
-      expect(subject.associations).to be_empty
+      expect(subject.loaded_attributes).to be_empty
+      expect(subject.loaded_associations).to be_empty
     end
   end
 
@@ -151,6 +227,52 @@ RSpec.describe SheetsDB::Worksheet::Row do
     it "delegates to worksheet" do
       allow(worksheet).to receive(:spreadsheet).and_return(:the_spreadsheet)
       expect(subject.spreadsheet).to eq(:the_spreadsheet)
+    end
+  end
+
+  describe "#attributes" do
+    it "returns hash of attributes not including associations" do
+      row_class.attribute :foo
+      row_class.attribute :bar
+      row_class.has_one :furb, from_collection: :furbs, key: :furb_id
+
+      allow(subject).to receive(:foo).and_return("yay")
+      allow(subject).to receive(:bar).and_return(nil)
+      expect(subject.attributes).to eq({ foo: "yay", bar: nil })
+    end
+  end
+
+  describe "#associations" do
+    it "returns hash of associations only" do
+      row_class.attribute :foo
+      row_class.has_one :furb, from_collection: :furbs, key: :furb_id
+      row_class.has_many :ghosts, from_collection: :ghosts, key: :ghost_ids
+
+      allow(subject).to receive(:furb).and_return("a_furb")
+      allow(subject).to receive(:ghosts).and_return([:g1, :g2])
+      expect(subject.associations).to eq({ furb: "a_furb", ghosts: [:g1, :g2] })
+    end
+  end
+
+  describe "#to_hash" do
+    it "returns only attributes by default" do
+      allow(subject).to receive(:attributes).and_return({ attr: :val })
+      expect(subject.to_hash).to eq({ attr: :val })
+    end
+
+    it "includes cascading associations with decreasing depth when given a depth level" do
+      w1, w2, furb = double, double, double
+      allow(w1).to receive(:to_hash).with(depth: 3).and_return(:w1_hash)
+      allow(w2).to receive(:to_hash).with(depth: 3).and_return(:w2_hash)
+      allow(furb).to receive(:to_hash).with(depth: 3).and_return(:furb_hash)
+      allow(subject).to receive(:attributes).and_return({ my: :values })
+      allow(subject).to receive(:associations).and_return({
+        widgets: [w1, w2],
+        furb: furb
+      })
+      expect(subject.to_hash(depth: 4)).to eq({
+        my: :values, widgets: [ :w1_hash, :w2_hash ], furb: :furb_hash
+      })
     end
   end
 end

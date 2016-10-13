@@ -31,12 +31,28 @@ module SheetsDB
       end
     end
 
+    def attribute_definitions
+      type.attribute_definitions
+    end
+
     def attribute_at_row_position(column_name, row_position:, type: String, multiple: false)
       column = columns[column_name]
-      raw_value = google_drive_resource[row_position, column.column_position]
+      raw_value = read_value_from_google_drive_resource(
+        dimensions: [row_position, column.column_position],
+        type: type,
+        multiple: multiple
+      )
+    end
+
+    def read_value_from_google_drive_resource(dimensions:, type:, multiple:)
+      raw_value = case type.to_s
+        when "DateTime"
+          google_drive_resource.input_value(*dimensions)
+        else
+          google_drive_resource[*dimensions]
+      end
       if multiple
-        raw_values = raw_value.split(/,\s*/)
-        raw_values.map { |value| convert_value(value, type) }
+        raw_value.split(/,\s*/).map { |value| convert_value(value, type) }
       else
         convert_value(raw_value, type)
       end
@@ -76,6 +92,14 @@ module SheetsDB
       result
     end
 
+    def find_by_attribute(attribute_name, value)
+      definition = attribute_definitions[attribute_name]
+      select { |item|
+        attribute = item.send(attribute_name)
+        definition[:multiple] ? attribute.include?(value) : attribute == value
+      }
+    end
+
     def reload!
       google_drive_resource.reload
     end
@@ -85,6 +109,8 @@ module SheetsDB
       case type.to_s
       when "Integer"
         raw_value.to_i
+      when "DateTime"
+        DateTime.strptime(raw_value, "%m/%d/%Y %H:%M:%S")
       else
         raw_value
       end

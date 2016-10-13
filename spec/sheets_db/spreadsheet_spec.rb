@@ -51,4 +51,20 @@ RSpec.describe SheetsDB::Spreadsheet do
       expect(subject.find_associations_by_ids(:widgets, [2, 3])).to eq([:w2, :w3])
     end
   end
+
+  describe "#select_from_association" do
+    it "is a proxy for the select method on an association" do
+      allow(subject).to receive(:widgets).and_return([1, 2, 3, 4])
+      expect(subject.select_from_association(:widgets) { |i| i < 3 }).to eq([1, 2])
+    end
+  end
+
+  describe "#find_associations_by_attribute" do
+    it "delegates find_by_attribute to the given resource" do
+      widget_proxy = instance_double(SheetsDB::Worksheet)
+      allow(widget_proxy).to receive(:find_by_attribute).with(:foo, 2).and_return([:w2, :w3])
+      allow(subject).to receive(:widgets).and_return(widget_proxy)
+      expect(subject.find_associations_by_attribute(:widgets, :foo, 2)).to eq([:w2, :w3])
+    end
+  end
 end
