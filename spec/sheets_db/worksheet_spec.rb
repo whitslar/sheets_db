@@ -2,11 +2,11 @@ RSpec.describe SheetsDB::Worksheet do
   let(:raw_worksheet) {
     instance_double(GoogleDrive::Worksheet,
       rows: [
-        ["id", "first_name", "", "last_name"],
-        ["1", "Anna", "", "Scoofles"],
-        ["2", "Balaji", "n/a", "Rhutoni"],
-        ["3", "Snoof", "", "McDoorney"],
-        ["4", "Anna", "", "Karenina"]
+        ["id", "first_name", "", "last_name", "colors"],
+        ["1", "Anna", "", "Scoofles", ""],
+        ["2", "Balaji", "n/a", "Rhutoni", ""],
+        ["3", "Snoof", "", "McDoorney", ""],
+        ["4", "Anna", "", "Karenina", ""]
       ],
       num_rows: 5
     )
@@ -42,10 +42,16 @@ RSpec.describe SheetsDB::Worksheet do
 
   describe "#update_attributes_at_row_position" do
     it "updates the given attributes using the google drive resource" do
+      allow(row_class).to receive(:attribute_definitions).and_return({
+        first_name: {},
+        last_name: {},
+        colors: { multiple: true }
+      })
       expect(raw_worksheet).to receive(:[]=).with(2, 2, "Bonnie")
       expect(raw_worksheet).to receive(:[]=).with(2, 4, "McFragile")
+      expect(raw_worksheet).to receive(:[]=).with(2, 5, "green,white")
       expect(raw_worksheet).to receive(:synchronize)
-      subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile" }, row_position: 2)
+      subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"] }, row_position: 2)
     end
   end
 
@@ -103,7 +109,8 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.columns).to eq({
         id: SheetsDB::Worksheet::Column.new(name: :id, column_position: 1),
         first_name: SheetsDB::Worksheet::Column.new(name: :first_name, column_position: 2),
-        last_name: SheetsDB::Worksheet::Column.new(name: :last_name, column_position: 4)
+        last_name: SheetsDB::Worksheet::Column.new(name: :last_name, column_position: 4),
+        colors: SheetsDB::Worksheet::Column.new(name: :colors, column_position: 5)
       })
     end
   end

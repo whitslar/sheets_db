@@ -17,7 +17,11 @@ module SheetsDB
           register_attribute(name, type: type, multiple: multiple, association: false)
 
           define_method(name) do
-            get_modified_attribute(name) || get_persisted_attribute(name)
+            begin
+              get_modified_attribute(name)
+            rescue KeyError
+              get_persisted_attribute(name)
+            end
           end
 
           define_method("#{name}=") do |value|
@@ -61,14 +65,15 @@ module SheetsDB
           end
 
           define_method("#{name}=") do |value|
+            existing_values = Array(send(name))
             Array(value).each do |foreign_item|
-              remote_definition = spreadsheet.send(from_collection).attribute_definitions[foreign_key]
-              assignment_value = if remote_definition[:multiple]
-                (foreign_item.send(foreign_key) || []).concat([id])
-              else
-                id
-              end
-              foreign_item.send("#{foreign_key}=", assignment_value)
+              next if existing_values.delete(foreign_item)
+              foreign_item.add_element_to_attribute(foreign_key, id)
+              @changed_foreign_items << foreign_item
+            end
+            existing_values.each do |existing_foreign_item|
+              existing_foreign_item.remove_element_from_attribute(foreign_key, id)
+              @changed_foreign_items << existing_foreign_item
             end
             @loaded_associations[name] = value
           end
@@ -91,18 +96,19 @@ module SheetsDB
         end
       end
 
-      attr_reader :worksheet, :row_position, :loaded_attributes, :loaded_associations
+      attr_reader :worksheet, :row_position, :loaded_attributes, :loaded_associations, :changed_foreign_items
 
       def initialize(worksheet:, row_position:)
         @worksheet = worksheet
         @row_position = row_position
         @loaded_attributes = {}
         @loaded_associations = {}
+        @changed_foreign_items = []
       end
 
       def get_modified_attribute(name)
         loaded_attributes.fetch(name, {}).
-          fetch(:changed, nil)
+          fetch(:changed)
       end
 
       def get_persisted_attribute(name)
@@ -122,6 +128,27 @@ module SheetsDB
         loaded_attributes[name][:changed] = value
       end
 
+      def modify_collection_attribute(name, value, remove:)
+        attribute_definition = self.class.attribute_definitions.fetch(name, {})
+        existing_value = Array(send(name))
+        return if remove && !existing_value.include?(value)
+        return if !remove && existing_value.include?(value)
+        assignment_value = if attribute_definition[:multiple]
+          remove ? existing_value - [value] : existing_value.concat([value])
+        else
+          remove ? nil : value
+        end
+        send("#{name}=", assignment_value)
+      end
+
+      def add_element_to_attribute(name, value)
+        modify_collection_attribute(name, value, remove: false)
+      end
+
+      def remove_element_from_attribute(name, value)
+        modify_collection_attribute(name, value, remove: true)
+      end
+
       def reload!
         worksheet.reload!
         reset_attributes_and_associations_cache
@@ -129,7 +156,14 @@ module SheetsDB
 
       def save!
         worksheet.update_attributes_at_row_position(staged_attributes, row_position: row_position)
+        save_changed_foreign_items!
         reset_attributes_and_associations_cache
+      end
+
+      def save_changed_foreign_items!
+        changed_foreign_items.each do |foreign_item|
+          foreign_item.save!
+        end
       end
 
       def reset_attributes_and_associations_cache

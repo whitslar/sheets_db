@@ -127,24 +127,26 @@ RSpec.describe SheetsDB::Worksheet::Row do
       expect(subject.widgets).to eq([:w1, :w2])
     end
 
-    it "sets up writer that sets foreign key and memoized association" do
-      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: false }}))
+    it "sets up writer that adds foreign keys and memoized association" do
       subject.id = 12
-      w1, w2 = double(this_id: 13), double(this_id: 14)
-      expect(w1).to receive(:this_id=).with(12)
-      expect(w2).to receive(:this_id=).with(12)
+      w1, w2 = double(:w1, this_id: 13), double(:w2, this_id: 14)
+      subject.loaded_associations[:widgets] = []
+      expect(w1).to receive(:add_element_to_attribute).with(:this_id, 12)
+      expect(w2).to receive(:add_element_to_attribute).with(:this_id, 12)
       subject.widgets = [w1, w2]
-      expect(subject.widgets).to eq([w1, w2])
+      expect(subject.changed_foreign_items).to match_array([w1, w2])
+      expect(subject.widgets).to match_array([w1, w2])
     end
 
-    it "adds to foreign key if remote attribute is multiple" do
-      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: true }}))
+    it "removes existing relationships if not in new set" do
       subject.id = 12
-      w1, w2 = double(this_id: [13]), double(this_id: [14, 15])
-      expect(w1).to receive(:this_id=).with([13, 12])
-      expect(w2).to receive(:this_id=).with([14, 15, 12])
-      subject.widgets = [w1, w2]
-      expect(subject.widgets).to eq([w1, w2])
+      w1, w2, w3 = double(:w1, this_id: 12), double(:w2, this_id: 12), double(:w3, this_id: 13)
+      subject.loaded_associations[:widgets] = [w1, w2]
+      expect(w1).to receive(:remove_element_from_attribute).with(:this_id, 12)
+      expect(w3).to receive(:add_element_to_attribute).with(:this_id, 12)
+      subject.widgets = [w2, w3]
+      expect(subject.changed_foreign_items).to match_array([w1, w3])
+      expect(subject.widgets).to match_array([w2, w3])
     end
 
     it "raises an error if attribute already registered" do
@@ -167,21 +169,22 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
 
     it "sets up writer that sets foreign key and memoized association" do
-      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: false }}))
+      allow(spreadsheet).to receive(:find_associations_by_attribute).and_return([])
       subject.id = 12
-      the_widget = double(this_id: 14)
-      expect(the_widget).to receive(:this_id=).with(12)
+      the_widget = double(:the_widget, this_id: 13)
+      expect(the_widget).to receive(:add_element_to_attribute).with(:this_id, 12)
       subject.widget = the_widget
       expect(subject.widget).to eq(the_widget)
     end
 
-    it "adds to foreign key if remote attribute is multiple" do
-      allow(spreadsheet).to receive(:widgets).and_return(double(attribute_definitions: { this_id: { multiple: true }}))
+    it "removes old association" do
       subject.id = 12
-      the_widget = double(this_id: [14, 15])
-      expect(the_widget).to receive(:this_id=).with([14, 15, 12])
-      subject.widget = the_widget
-      expect(subject.widget).to eq(the_widget)
+      old_widget, new_widget = double(:old, this_id: 12), double(:new, this_id: 14)
+      subject.loaded_associations[:widget] = old_widget
+      expect(old_widget).to receive(:remove_element_from_attribute).with(:this_id, 12)
+      expect(new_widget).to receive(:add_element_to_attribute).with(:this_id, 12)
+      subject.widget = new_widget
+      expect(subject.widget).to eq(new_widget)
     end
 
     it "raises an error if attribute already registered" do
@@ -213,11 +216,22 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe "#save_changed_foreign_items!" do
+    it "sends save! method to all changed foreign items" do
+      fi1, fi2 = double, double
+      allow(subject).to receive(:changed_foreign_items).and_return([fi1, fi2])
+      expect(fi1).to receive(:save!)
+      expect(fi2).to receive(:save!)
+      subject.save_changed_foreign_items!
+    end
+  end
+
   describe "#save!" do
-    it "updates staged attributes on worksheet and empties attribute and association cache" do
+    it "updates staged attributes, foreign item changes, and attribute and association cache" do
       allow(subject).to receive(:staged_attributes).and_return(:the_staged_attributes)
       expect(worksheet).to receive(:update_attributes_at_row_position).
         with(:the_staged_attributes, row_position: 3).ordered
+      expect(subject).to receive(:save_changed_foreign_items!)
       expect(subject).to receive(:reset_attributes_and_associations_cache).ordered
       subject.save!
     end
@@ -273,6 +287,84 @@ RSpec.describe SheetsDB::Worksheet::Row do
       expect(subject.to_hash(depth: 4)).to eq({
         my: :values, widgets: [ :w1_hash, :w2_hash ], furb: :furb_hash
       })
+    end
+  end
+
+  describe "#add_element_to_attribute" do
+    context "with singular attribute" do
+      before(:each) do
+        row_class.attribute :foo
+      end
+
+      it "sets the attribute to the given element" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return(nil)
+        subject.add_element_to_attribute(:foo, "hello")
+        expect(subject.foo).to eq("hello")
+      end
+
+      it "does nothing if attribute already is element" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return("hello")
+        expect(subject).to receive(:foo=).never
+        subject.add_element_to_attribute(:foo, "hello")
+        expect(subject.foo).to eq("hello")
+      end
+    end
+
+    context "with multiple attribute" do
+      before(:each) do
+        row_class.attribute :foo, multiple: true
+      end
+
+      it "adds the given element to the attribute" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return([1, 2])
+        subject.add_element_to_attribute(:foo, 3)
+        expect(subject.foo).to eq([1, 2, 3])
+      end
+
+      it "does nothing if attribute already contains element" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return([1, 2, 3])
+        expect(subject).to receive(:foo=).never
+        subject.add_element_to_attribute(:foo, 3)
+        expect(subject.foo).to eq([1, 2, 3])
+      end
+    end
+  end
+  
+  describe "#remove_element_from_attribute" do
+    context "with singular attribute" do
+      before(:each) do
+        row_class.attribute :foo
+      end
+
+      it "sets the attribute to nil" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return("hello")
+        subject.remove_element_from_attribute(:foo, "hello")
+        expect(subject.foo).to be_nil
+      end
+
+      it "does nothing if attribute not set to element" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return("bye")
+        subject.remove_element_from_attribute(:foo, "hello")
+        expect(subject.foo).to eq("bye")
+      end
+    end
+
+    context "with multiple attribute" do
+      before(:each) do
+        row_class.attribute :foo, multiple: true
+      end
+
+      it "removes the given element from the attribute" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return([1, 2, 3])
+        subject.remove_element_from_attribute(:foo, 3)
+        expect(subject.foo).to eq([1, 2])
+      end
+
+      it "does nothing if attribute does not contain element" do
+        allow(subject).to receive(:get_persisted_attribute).with(:foo).and_return([1, 2, 3])
+        subject.remove_element_from_attribute(:foo, 4)
+        expect(subject.foo).to eq([1, 2, 3])
+      end
     end
   end
 end

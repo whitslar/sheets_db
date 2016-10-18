@@ -61,7 +61,9 @@ module SheetsDB
     def update_attributes_at_row_position(staged_attributes, row_position:)
       staged_attributes.each do |name, value|
         column = columns[name]
-        google_drive_resource[row_position, column.column_position] = value
+        definition = attribute_definitions[name]
+        assignment_value = definition[:multiple] ? value.join(",") : value
+        google_drive_resource[row_position, column.column_position] = assignment_value
       end
       google_drive_resource.synchronize
     end
