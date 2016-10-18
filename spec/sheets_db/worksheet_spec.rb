@@ -17,26 +17,37 @@ RSpec.describe SheetsDB::Worksheet do
   describe "#attribute_at_row_position" do
     it "returns the value for the given attribute at the given row index" do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
-      expect(subject.attribute_at_row_position(:first_name, row_position: 2)).to eq("Anna")
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { transform: Proc.new { |val| val.upcase } } })
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq("ANNA")
     end
 
     it "converts the given value according to type" do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
-      allow(subject).to receive(:convert_value).with("Anna", :the_type).and_return("Deanna")
-      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: :the_type)).to eq("Deanna")
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { type: :the_type } })
+      allow(subject).to receive(:convert_value).with("Anna", { type: :the_type }).and_return("Deanna")
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq("Deanna")
+    end
+
+    it "converts the given value according to type" do
+      allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { type: :the_type } })
+      allow(subject).to receive(:convert_value).with("Anna", { type: :the_type }).and_return("Deanna")
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq("Deanna")
     end
 
     it "splits multiple return values" do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna, Banana")
-      allow(subject).to receive(:convert_value).with("Anna", :the_type).and_return("Deanna")
-      allow(subject).to receive(:convert_value).with("Banana", :the_type).and_return("The Banana")
-      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: :the_type, multiple: true)).to eq(["Deanna", "The Banana"])
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { type: :the_type, multiple: true } })
+      allow(subject).to receive(:convert_value).with("Anna", { type: :the_type, multiple: true }).and_return("Deanna")
+      allow(subject).to receive(:convert_value).with("Banana", { type: :the_type, multiple: true }).and_return("The Banana")
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq(["Deanna", "The Banana"])
     end
 
     it "reads input values directly if type is DateTime" do
       allow(raw_worksheet).to receive(:input_value).with(2, 2).and_return("April 15")
-      allow(subject).to receive(:convert_value).with("April 15", DateTime).and_return("4/15")
-      expect(subject.attribute_at_row_position(:first_name, row_position: 2, type: DateTime)).to eq("4/15")
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { type: DateTime } })
+      allow(subject).to receive(:convert_value).with("April 15", { type: DateTime }).and_return("4/15")
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq("4/15")
     end
   end
 
@@ -124,19 +135,19 @@ RSpec.describe SheetsDB::Worksheet do
 
   describe "#convert_value" do
     it "returns nil if given a blank string" do
-      expect(subject.convert_value("", :whatever)).to be_nil
+      expect(subject.convert_value("", { type: :whatever })).to be_nil
     end
 
     it "returns given value if unrecognized type" do
-      expect(subject.convert_value("something", :whatever)).to eq("something")
+      expect(subject.convert_value("something", { type: :whatever })).to eq("something")
     end
 
     it "returns integer value if type is Integer" do
-      expect(subject.convert_value("14", Integer)).to eq(14)
+      expect(subject.convert_value("14", { type: Integer })).to eq(14)
     end
 
     it "returns DateTime value if type is DateTime" do
-      expect(subject.convert_value("4/15/2016 10:15:30", DateTime)).to eq(
+      expect(subject.convert_value("4/15/2016 10:15:30", { type: DateTime })).to eq(
         DateTime.parse("2016-04-15 10:15:30")
       )
     end

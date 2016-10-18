@@ -35,26 +35,26 @@ module SheetsDB
       type.attribute_definitions
     end
 
-    def attribute_at_row_position(column_name, row_position:, type: String, multiple: false)
+    def attribute_at_row_position(column_name, row_position)
+      attribute_definition = attribute_definitions.fetch(column_name, {})
       column = columns[column_name]
       raw_value = read_value_from_google_drive_resource(
         dimensions: [row_position, column.column_position],
-        type: type,
-        multiple: multiple
+        attribute_definition: attribute_definition
       )
     end
 
-    def read_value_from_google_drive_resource(dimensions:, type:, multiple:)
-      raw_value = case type.to_s
+    def read_value_from_google_drive_resource(dimensions:, attribute_definition:)
+      raw_value = case attribute_definition[:type].to_s
         when "DateTime"
           google_drive_resource.input_value(*dimensions)
         else
           google_drive_resource[*dimensions]
       end
-      if multiple
-        raw_value.split(/,\s*/).map { |value| convert_value(value, type) }
+      if attribute_definition[:multiple]
+        raw_value.split(/,\s*/).map { |value| convert_value(value, attribute_definition) }
       else
-        convert_value(raw_value, type)
+        convert_value(raw_value, attribute_definition)
       end
     end
 
@@ -106,9 +106,9 @@ module SheetsDB
       google_drive_resource.reload
     end
 
-    def convert_value(raw_value, type)
+    def convert_value(raw_value, attribute_definition)
       return nil if raw_value == ""
-      case type.to_s
+      converted_value = case attribute_definition[:type].to_s
       when "Integer"
         raw_value.to_i
       when "DateTime"
@@ -116,6 +116,9 @@ module SheetsDB
       else
         raw_value
       end
+      attribute_definition[:transform] ?
+        attribute_definition[:transform].call(converted_value) :
+        converted_value
     end
   end
 end

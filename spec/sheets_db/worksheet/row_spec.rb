@@ -12,11 +12,11 @@ RSpec.describe SheetsDB::Worksheet::Row do
   describe ".attribute" do
     context "with basic attribute" do
       before(:each) do
-        allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3, type: String, multiple: false).once.and_return("the_number_1")
+        allow(worksheet).to receive(:attribute_at_row_position).with(:foo, 3).once.and_return("the_number_1")
         row_class.attribute :foo
       end
 
-      it "sets up memoized reader for attribute, with String conversion" do
+      it "sets up memoized reader for attribute" do
         subject.foo
         expect(subject.foo).to eq("the_number_1")
       end
@@ -38,29 +38,6 @@ RSpec.describe SheetsDB::Worksheet::Row do
         expect {
           row_class.attribute :foo
         }.to raise_error(described_class::AttributeAlreadyRegisteredError)
-      end
-    end
-
-    context "with type specification" do
-      before(:each) do
-        allow(worksheet).to receive(:attribute_at_row_position).with(:foo, row_position: 3, type: :the_type, multiple: false).once.and_return("the_number_1")
-        row_class.attribute :foo, type: :the_type
-      end
-
-      it "sets up reader for attribute, with type conversion" do
-        allow(subject).to receive(:convert_value).with("1", :the_type).and_return("the_number_1")
-        expect(subject.foo).to eq("the_number_1")
-      end
-    end
-
-    context "with collection attribute" do
-      before(:each) do
-        allow(worksheet).to receive(:attribute_at_row_position).with(:things, row_position: 3, type: :the_type, multiple: true).and_return([1, 2, 3])
-        row_class.attribute :things, type: :the_type, multiple: true
-      end
-
-      it "sets up reader for attribute, with type conversion" do
-        expect(subject.things).to eq([1, 2, 3])
       end
     end
   end

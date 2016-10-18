@@ -5,16 +5,16 @@ module SheetsDB
       class AssociationAlreadyRegisteredError < StandardError; end
 
       class << self
-        attr_reader :attribute_definitions, :association_definitions
+        attr_reader :association_definitions
 
         def inherited(subclass)
           super
-          subclass.instance_variable_set(:@attribute_definitions, attribute_definitions)
-          subclass.instance_variable_set(:@association_definitions, association_definitions)
+          subclass.instance_variable_set(:@attribute_definitions, @attribute_definitions)
+          subclass.instance_variable_set(:@association_definitions, @association_definitions)
         end
 
-        def attribute(name, type: String, multiple: false)
-          register_attribute(name, type: type, multiple: multiple, association: false)
+        def attribute(name, type: String, multiple: false, transform: nil)
+          register_attribute(name, type: type, multiple: multiple, transform: transform, association: false)
 
           define_method(name) do
             begin
@@ -88,11 +88,14 @@ module SheetsDB
         end
 
         def register_attribute(name, **options)
-          @attribute_definitions ||= {}
-          if @attribute_definitions.fetch(name, nil)
-            raise AttributeAlreadyRegisteredError
+          if attribute_definitions.fetch(name, nil)
+            raise AttributeAlreadyRegisteredError, name
           end
-          @attribute_definitions[name] = options
+          attribute_definitions[name] = options
+        end
+
+        def attribute_definitions
+          @attribute_definitions ||= {}
         end
       end
 
@@ -113,14 +116,8 @@ module SheetsDB
 
       def get_persisted_attribute(name)
         loaded_attributes[name] ||= {}
-        loaded_attributes[name][:original] ||= begin
-          attribute_definition = self.class.attribute_definitions.fetch(name, {})
-          worksheet.attribute_at_row_position(name,
-            row_position: row_position,
-            type: attribute_definition[:type],
-            multiple: attribute_definition[:multiple]
-          )
-        end
+        loaded_attributes[name][:original] ||=
+          worksheet.attribute_at_row_position(name, row_position)
       end
 
       def stage_attribute_modification(name, value)
