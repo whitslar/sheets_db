@@ -4,24 +4,27 @@ module SheetsDB
 
     set_resource_type GoogleDrive::Spreadsheet
 
-    def self.has_many(resource, sheet_name:, type:)
-      register_association(resource, sheet_name: sheet_name, type: type)
+    def self.has_many(resource, sheet_name:, class_name:)
+      register_sibling_association(resource, sheet_name: sheet_name, class_name: class_name)
       define_method(resource) do
         @worksheets ||= {}
         @worksheets[resource] ||= Worksheet.new(
           spreadsheet: self,
           google_drive_resource: google_drive_resource.worksheet_by_title(sheet_name),
-          type: type
+          type: Support.constantize(class_name)
         )
       end
     end
 
-    def self.register_association(resource, sheet_name:, type:)
+    def self.register_sibling_association(resource, sheet_name:, class_name:)
       @associations ||= {}
       if @associations.fetch(resource, nil)
         raise WorksheetAssociationAlreadyRegisteredError
       end
-      @associations[resource] = [sheet_name, type]
+      @associations[resource] = {
+        sheet_name: sheet_name,
+        class_name: class_name
+      }
     end
 
     def find_association_by_id(association_name, id)
