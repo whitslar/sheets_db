@@ -55,5 +55,14 @@ module SheetsDB
       other.is_a?(self.class) &&
         other.google_drive_resource == google_drive_resource
     end
+
+    def base_attributes
+      {
+        id: id,
+        name: name,
+        created_at: created_at,
+        updated_at: updated_at
+      }
+    end
   end
 end

@@ -4,10 +4,6 @@ RSpec.describe SheetsDB::Resource do
 
   subject { test_class.new(raw_file) }
 
-
-  # let(:raw_file) { GoogleDriveSessionProxy::DUMMY_FILES[:file] }
-  # subject { described_class.new(raw_file) }
-
   describe ".find_by_id" do
     it "returns instance for given id" do
       expect(test_class.find_by_id(:file)).to eq(subject)
@@ -60,6 +56,21 @@ RSpec.describe SheetsDB::Resource do
         test_class.belongs_to_many :teams, class_name: "Foo"
         test_class.belongs_to_many :cadres, class_name: "Bar"
       }.to raise_error(described_class::CollectionTypeAlreadyRegisteredError)
+    end
+  end
+
+  describe "#base_attributes" do
+    it "returns hash of common resource attributes" do
+      allow(subject).to receive(:id).and_return(12)
+      allow(subject).to receive(:name).and_return("Riverboat")
+      allow(subject).to receive(:created_at).and_return(:a_while_ago)
+      allow(subject).to receive(:updated_at).and_return(:recently)
+      expect(subject.base_attributes).to eq({
+        id: 12,
+        name: "Riverboat",
+        created_at: :a_while_ago,
+        updated_at: :recently
+      })
     end
   end
 end
