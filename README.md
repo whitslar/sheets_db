@@ -1,8 +1,8 @@
 # SheetsDB
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/sheets_db`. To experiment with that code, run `bin/console` for an interactive prompt.
+SheetsDB is essentially a Ruby ORM for tabular and relational data stored in Google Sheets.  While storing relational data in a spreadsheet is kind of like using a pint glass to hammer a nail, there are situations in which this can be useful, especially for prototyping or collaborating with people who aren't as comfortable seeding data into an RDBMS.
 
-TODO: Delete this and the text above, and describe your gem
+There are some conventions you must follow in your Google drive folders and the Sheets themselves, but most setup of attributes, primitive type mapping, etc. is done within your object classes themselves.
 
 ## Installation
 
@@ -22,7 +22,7 @@ Or install it yourself as:
 
 ## Usage
 
-TODO: Write usage instructions here
+View usage documentation [here](documentation/usage.md).
 
 ## Development
 
