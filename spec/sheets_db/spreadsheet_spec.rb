@@ -18,7 +18,7 @@ RSpec.describe SheetsDB::Spreadsheet do
   describe ".has_many" do
     it "adds an association to a worksheet parser" do
       allow(SheetsDB::Support).to receive(:constantize).with("Goose").and_return(:a_type)
-      test_class.has_many :widgets, sheet_name: "Widgets", class_name: "Goose"
+      test_class.has_many :widgets, worksheet_name: "Widgets", class_name: "Goose"
       allow(GoogleDriveSessionProxy::DUMMY_FILES[:spreadsheet]).
         to receive(:worksheet_by_title).
         with("Widgets").
@@ -30,8 +30,8 @@ RSpec.describe SheetsDB::Spreadsheet do
 
     it "does not allow two associations of same name" do
       expect {
-        test_class.has_many :widgets, sheet_name: "Widgets", class_name: :collection_class
-        test_class.has_many :widgets, sheet_name: "Widgets2", class_name: :collection_class
+        test_class.has_many :widgets, worksheet_name: "Widgets", class_name: :collection_class
+        test_class.has_many :widgets, worksheet_name: "Widgets2", class_name: :collection_class
       }.to raise_error(described_class::WorksheetAssociationAlreadyRegisteredError)
     end
   end
