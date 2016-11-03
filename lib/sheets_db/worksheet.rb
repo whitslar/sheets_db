@@ -113,6 +113,8 @@ module SheetsDB
         raw_value.to_i
       when "DateTime"
         DateTime.strptime(raw_value, "%m/%d/%Y %H:%M:%S")
+      when "Boolean"
+        { "TRUE" => true, "FALSE" => false }.fetch(raw_value.upcase, nil)
       else
         raw_value
       end

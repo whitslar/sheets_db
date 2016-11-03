@@ -151,5 +151,21 @@ RSpec.describe SheetsDB::Worksheet do
         DateTime.parse("2016-04-15 10:15:30")
       )
     end
+
+    context "when type is Boolean" do
+      it "returns true for TRUE value" do
+        expect(subject.convert_value("TRUE", { type: :Boolean })).to eq(true)
+        expect(subject.convert_value("True", { type: :Boolean })).to eq(true)
+      end
+
+      it "returns false for FALSE value" do
+        expect(subject.convert_value("FALSE", { type: :Boolean })).to eq(false)
+        expect(subject.convert_value("false", { type: :Boolean })).to eq(false)
+      end
+
+      it "returns nil for unknown value" do
+        expect(subject.convert_value("goats", { type: :Boolean })).to eq(nil)
+      end
+    end
   end
 end
