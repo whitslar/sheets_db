@@ -125,6 +125,17 @@ module SheetsDB
         loaded_attributes[name][:changed] = value
       end
 
+      def stage_attributes(new_attribute_set)
+        new_attribute_set.each do |name, value|
+          send(:"#{name}=", value)
+        end
+      end
+
+      def update_attributes!(new_attribute_set)
+        stage_attributes(new_attribute_set)
+        save!
+      end
+
       def modify_collection_attribute(name, value, remove:)
         attribute_definition = self.class.attribute_definitions.fetch(name, {})
         existing_value = Array(send(name))

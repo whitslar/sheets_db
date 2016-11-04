@@ -171,6 +171,24 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe "#stage_attributes" do
+    it "sends setter method for each attribute given" do
+      expect(subject).to receive(:foo=).with(:new_foo)
+      expect(subject).to receive(:bar=).with(:new_bar)
+      subject.stage_attributes(foo: :new_foo, bar: :new_bar)
+    end
+  end
+
+  describe "#update_attributes!" do
+    it "stages given attributes and calls #save!" do
+      expect(subject).to receive(:stage_attributes).with({
+        foo: :new_foo, bar: :new_bar
+      })
+      expect(subject).to receive(:save!)
+      subject.update_attributes!(foo: :new_foo, bar: :new_bar)
+    end
+  end
+
   describe "#staged_attributes" do
     it "returns hash of staged attribute names and values" do
       allow(subject).to receive(:loaded_attributes).and_return({
