@@ -24,7 +24,7 @@ module SheetsDB
         {}.tap { |directory|
           google_drive_resource.rows.first.each_with_index do |name, i|
             unless name == ""
-              directory[name.to_sym] = Column.new(name: name.to_sym, column_position: i + 1)
+              directory[name] = Column.new(name: name, column_position: i + 1)
             end
           end
         }
@@ -35,9 +35,16 @@ module SheetsDB
       type.attribute_definitions
     end
 
-    def attribute_at_row_position(column_name, row_position)
-      attribute_definition = attribute_definitions.fetch(column_name, {})
-      column = columns[column_name]
+    def get_definition_and_column(attribute_name)
+      attribute_definition = attribute_definitions.fetch(attribute_name, {})
+      [
+        attribute_definition,
+        columns[attribute_definition.fetch(:column_name, attribute_name.to_s)]
+      ]
+    end
+
+    def attribute_at_row_position(attribute_name, row_position)
+      attribute_definition, column = get_definition_and_column(attribute_name)
       raw_value = read_value_from_google_drive_resource(
         dimensions: [row_position, column.column_position],
         attribute_definition: attribute_definition
@@ -59,10 +66,9 @@ module SheetsDB
     end
 
     def update_attributes_at_row_position(staged_attributes, row_position:)
-      staged_attributes.each do |name, value|
-        column = columns[name]
-        definition = attribute_definitions[name]
-        assignment_value = definition[:multiple] ? value.join(",") : value
+      staged_attributes.each do |attribute_name, value|
+        attribute_definition, column = get_definition_and_column(attribute_name)
+        assignment_value = attribute_definition[:multiple] ? value.join(",") : value
         google_drive_resource[row_position, column.column_position] = assignment_value
       end
       google_drive_resource.synchronize

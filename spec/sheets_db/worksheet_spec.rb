@@ -2,11 +2,11 @@ RSpec.describe SheetsDB::Worksheet do
   let(:raw_worksheet) {
     instance_double(GoogleDrive::Worksheet,
       rows: [
-        ["id", "first_name", "", "last_name", "colors"],
-        ["1", "Anna", "", "Scoofles", ""],
-        ["2", "Balaji", "n/a", "Rhutoni", ""],
-        ["3", "Snoof", "", "McDoorney", ""],
-        ["4", "Anna", "", "Karenina", ""]
+        ["id", "first_name", "", "last_name", "colors", "Food (Titleized)"],
+        ["1", "Anna", "", "Scoofles", "", "pickles"],
+        ["2", "Balaji", "n/a", "Rhutoni", "", "noodles"],
+        ["3", "Snoof", "", "McDoorney", "", ""],
+        ["4", "Anna", "", "Karenina", "", ""]
       ],
       num_rows: 5
     )
@@ -19,6 +19,12 @@ RSpec.describe SheetsDB::Worksheet do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
       allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { transform: Proc.new { |val| val.upcase } } })
       expect(subject.attribute_at_row_position(:first_name, 2)).to eq("ANNA")
+    end
+
+    it "utilizes custom column name" do
+      allow(raw_worksheet).to receive(:[]).with(2, 6).and_return("cabbage")
+      allow(row_class).to receive(:attribute_definitions).and_return({ the_food: { column_name: "Food (Titleized)" } })
+      expect(subject.attribute_at_row_position(:the_food, 2)).to eq("cabbage")
     end
 
     it "converts the given value according to type" do
@@ -56,13 +62,15 @@ RSpec.describe SheetsDB::Worksheet do
       allow(row_class).to receive(:attribute_definitions).and_return({
         first_name: {},
         last_name: {},
-        colors: { multiple: true }
+        colors: { multiple: true },
+        the_food: { column_name: "Food (Titleized)" }
       })
       expect(raw_worksheet).to receive(:[]=).with(2, 2, "Bonnie")
       expect(raw_worksheet).to receive(:[]=).with(2, 4, "McFragile")
       expect(raw_worksheet).to receive(:[]=).with(2, 5, "green,white")
+      expect(raw_worksheet).to receive(:[]=).with(2, 6, "tasties")
       expect(raw_worksheet).to receive(:synchronize)
-      subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"] }, row_position: 2)
+      subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"], the_food: "tasties" }, row_position: 2)
     end
   end
 
@@ -118,10 +126,11 @@ RSpec.describe SheetsDB::Worksheet do
   describe "#columns" do
     it "returns columns with names and positions" do
       expect(subject.columns).to eq({
-        id: SheetsDB::Worksheet::Column.new(name: :id, column_position: 1),
-        first_name: SheetsDB::Worksheet::Column.new(name: :first_name, column_position: 2),
-        last_name: SheetsDB::Worksheet::Column.new(name: :last_name, column_position: 4),
-        colors: SheetsDB::Worksheet::Column.new(name: :colors, column_position: 5)
+        "id" => SheetsDB::Worksheet::Column.new(name: "id", column_position: 1),
+        "first_name" => SheetsDB::Worksheet::Column.new(name: "first_name", column_position: 2),
+        "last_name" => SheetsDB::Worksheet::Column.new(name: "last_name", column_position: 4),
+        "colors" => SheetsDB::Worksheet::Column.new(name: "colors", column_position: 5),
+        "Food (Titleized)" => SheetsDB::Worksheet::Column.new(name: "Food (Titleized)", column_position: 6)
       })
     end
   end

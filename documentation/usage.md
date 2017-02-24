@@ -148,7 +148,7 @@ end
 class User < SheetsDB::Worksheet::Row
   attribute :id, type: Integer
   attribute :first_name
-  attribute :last_name
+  attribute :last_name, column_name: "Last Name"
   attribute :pet_ids, multiple: true
 
   has_many :pets, from_collection: :pets, key: :pet_ids
@@ -174,6 +174,8 @@ The only required argument to the `attribute` class method is the name of the co
 `multiple`: This option defaults to false.  If true, it tells SheetsDB to parse the value as a comma-separated list of values, and return an array by splitting on the comma (if no comma is found, it will return a single element array).
 
 `transform`: If you supply a Proc (or lambda) to the `transform` option, reading this column from the spreadsheet will cause it to first be sent through this transformation Proc.  For `multiple` columns, each element will be transformed independently.
+
+`column_name`: By default, SheetsDB will use the attribute name as the name of the column to look for in the header row (first row) of the worksheet.  You can override this, however, by specifying the `column_name` option.
 
 ##### `has_many` and `has_one` associations
 

@@ -10,7 +10,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
   end
 
   describe ".attribute" do
-    context "with basic attribute" do
+    context "dynamic methods" do
       before(:each) do
         allow(worksheet).to receive(:attribute_at_row_position).with(:foo, 3).once.and_return("the_number_1")
         row_class.attribute :foo
@@ -33,12 +33,35 @@ RSpec.describe SheetsDB::Worksheet::Row do
         subject.reload!
         expect(subject.foo).to eq("the_number_1")
       end
+    end
 
-      it "raises an error if attribute already registered" do
-        expect {
-          row_class.attribute :foo
-        }.to raise_error(described_class::AttributeAlreadyRegisteredError)
-      end
+    it "raises an error if attribute already registered" do
+      row_class.attribute :foo
+      expect {
+        row_class.attribute :foo
+      }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+    end
+
+    it "sets default configuration on attribute definition" do
+      row_class.attribute :the_name
+      expect(row_class.attribute_definitions.fetch(:the_name)).to eq({
+        type: String,
+        multiple: false,
+        transform: nil,
+        column_name: "the_name",
+        association: false
+      })
+    end
+
+    it "allows overridden settings" do
+      row_class.attribute :the_name, type: "foo", multiple: "sure", transform: "yeah", column_name: "Zoop"
+      expect(row_class.attribute_definitions.fetch(:the_name)).to eq({
+        type: "foo",
+        multiple: "sure",
+        transform: "yeah",
+        column_name: "Zoop",
+        association: false
+      })
     end
   end
 
@@ -324,7 +347,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
       end
     end
   end
-  
+
   describe "#remove_element_from_attribute" do
     context "with singular attribute" do
       before(:each) do

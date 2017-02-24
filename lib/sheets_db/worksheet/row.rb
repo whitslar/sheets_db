@@ -13,8 +13,8 @@ module SheetsDB
           subclass.instance_variable_set(:@association_definitions, @association_definitions)
         end
 
-        def attribute(name, type: String, multiple: false, transform: nil)
-          register_attribute(name, type: type, multiple: multiple, transform: transform, association: false)
+        def attribute(name, type: String, multiple: false, transform: nil, column_name: nil)
+          register_attribute(name, type: type, multiple: multiple, transform: transform, column_name: column_name || name.to_s, association: false)
 
           define_method(name) do
             begin
