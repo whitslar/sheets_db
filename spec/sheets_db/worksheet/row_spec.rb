@@ -385,4 +385,44 @@ RSpec.describe SheetsDB::Worksheet::Row do
       end
     end
   end
+
+  describe "#==" do
+    it "returns true if same worksheet and row position" do
+      expect(subject).to eq(
+        row_class.new(worksheet: worksheet, row_position: 3)
+      )
+    end
+
+    it "returns false if other is not the same class" do
+      expect(subject).not_to eq(
+        OpenStruct.new(worksheet: worksheet, row_position: 3)
+      )
+    end
+
+    it "returns false if worksheet is different" do
+      expect(subject).not_to eq(
+        row_class.new(worksheet: :other_worksheet, row_position: 3)
+      )
+    end
+
+    it "returns false if row position is different" do
+      expect(subject).not_to eq(
+        row_class.new(worksheet: :other_worksheet, row_position: 2)
+      )
+    end
+  end
+
+  describe "#eql?" do
+    it "aliases to ==" do
+      expect(subject.method(:eql?)).to eq(subject.method(:==))
+    end
+  end
+
+  describe "#hash" do
+    it "returns hash of class, worksheet, and row position" do
+      expect(subject.hash).to eq(
+        [row_class, worksheet, 3].hash
+      )
+    end
+  end
 end

@@ -19,6 +19,12 @@ module SheetsDB
         other.type == type
     end
 
+    alias_method :eql?, :==
+
+    def hash
+      [self.class, google_drive_resource, type].hash
+    end
+
     def columns
       @columns ||= begin
         {}.tap { |directory|

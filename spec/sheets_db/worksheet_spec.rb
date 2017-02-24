@@ -177,4 +177,44 @@ RSpec.describe SheetsDB::Worksheet do
       end
     end
   end
+
+  describe "#==" do
+    it "returns true if google drive resource is the same and type is the same" do
+      expect(subject).to eq(
+        described_class.new(spreadsheet: :the_spreadsheet, google_drive_resource: raw_worksheet, type: row_class)
+      )
+    end
+
+    it "returns false if other is not the same class" do
+      expect(subject).not_to eq(
+        SheetsDB::Spreadsheet.new(google_drive_resource: raw_worksheet)
+      )
+    end
+
+    it "returns false if google drive resource is the same but type is different" do
+      expect(subject).not_to eq(
+        described_class.new(spreadsheet: :the_spreadsheet, google_drive_resource: raw_worksheet, type: :other)
+      )
+    end
+
+    it "returns false if google drive resource is different" do
+      expect(subject).not_to eq(
+        described_class.new(spreadsheet: :the_spreadsheet, google_drive_resource: :whatever, type: row_class)
+      )
+    end
+  end
+
+  describe "#eql?" do
+    it "aliases to ==" do
+      expect(subject.method(:eql?)).to eq(subject.method(:==))
+    end
+  end
+
+  describe "#hash" do
+    it "returns hash of class, worksheet, and row position" do
+      expect(subject.hash).to eq(
+        [described_class, raw_worksheet, row_class].hash
+      )
+    end
+  end
 end

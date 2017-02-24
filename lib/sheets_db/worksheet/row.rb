@@ -227,6 +227,18 @@ module SheetsDB
         end
         attributes.merge(hashed_associations)
       end
+
+      def ==(other)
+        other.is_a?(self.class) &&
+          other.worksheet == worksheet &&
+          other.row_position == row_position
+      end
+
+      alias_method :eql?, :==
+
+      def hash
+        [self.class, worksheet, row_position].hash
+      end
     end
   end
 end

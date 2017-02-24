@@ -56,6 +56,12 @@ module SheetsDB
         other.google_drive_resource == google_drive_resource
     end
 
+    alias_method :eql?, :==
+
+    def hash
+      [self.class, google_drive_resource].hash
+    end
+
     def base_attributes
       {
         id: id,
