@@ -5,12 +5,9 @@ module SheetsDB
       class AssociationAlreadyRegisteredError < StandardError; end
 
       class << self
-        attr_reader :association_definitions
-
         def inherited(subclass)
           super
           subclass.instance_variable_set(:@attribute_definitions, @attribute_definitions)
-          subclass.instance_variable_set(:@association_definitions, @association_definitions)
         end
 
         def attribute(name, type: String, multiple: false, transform: nil, column_name: nil)
@@ -96,6 +93,10 @@ module SheetsDB
 
         def attribute_definitions
           @attribute_definitions ||= {}
+        end
+
+        def association_definitions
+          attribute_definitions.select { |_, value| value[:association] }
         end
       end
 

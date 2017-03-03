@@ -6,7 +6,6 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
   before(:each) do
     row_class.instance_variable_set(:@attribute_definitions, nil)
-    row_class.instance_variable_set(:@association_definitions, nil)
   end
 
   describe ".attribute" do
@@ -191,6 +190,21 @@ RSpec.describe SheetsDB::Worksheet::Row do
       expect {
         row_class.belongs_to_one :widget, from_collection: :widgets, foreign_key: :widget_id
       }.to raise_error(described_class::AttributeAlreadyRegisteredError)
+    end
+  end
+
+  describe ".association_definitions" do
+    it "returns attribute definitions that are associations" do
+      allow(row_class).to receive(:attribute_definitions).
+        and_return({
+          spoons: { foo: :bar, association: true },
+          knives: { spot: :quig, association: true },
+          forks: { baz: :narf }
+        })
+      expect(row_class.association_definitions).to eq({
+        spoons: { foo: :bar, association: true },
+        knives: { spot: :quig, association: true }
+      })
     end
   end
 
