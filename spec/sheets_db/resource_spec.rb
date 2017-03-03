@@ -105,4 +105,19 @@ RSpec.describe SheetsDB::Resource do
       )
     end
   end
+
+  describe "#resource_type" do
+    it "inherits from parent class" do
+      test_class.set_resource_type :pigeons
+      new_class = Class.new(test_class)
+      expect(new_class.resource_type).to eq(:pigeons)
+    end
+
+    it "can be overridden by subclass" do
+      test_class.set_resource_type :pigeons
+      new_class = Class.new(test_class)
+      new_class.set_resource_type :snoopies
+      expect(new_class.resource_type).to eq(:snoopies)
+    end
+  end
 end

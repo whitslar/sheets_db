@@ -6,6 +6,11 @@ module SheetsDB
     class << self
       attr_reader :resource_type
 
+      def inherited(subclass)
+        super
+        subclass.instance_variable_set(:@resource_type, @resource_type)
+      end
+
       def set_resource_type(resource_type)
         @resource_type = resource_type
       end
