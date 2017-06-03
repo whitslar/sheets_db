@@ -55,6 +55,13 @@ RSpec.describe SheetsDB::Worksheet do
       allow(subject).to receive(:convert_value).with("April 15", { type: DateTime }).and_return("4/15")
       expect(subject.attribute_at_row_position(:first_name, 2)).to eq("4/15")
     end
+
+    it "raises a WorksheetColumnNotFoundError if accessing a column that does not exist" do
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
+      expect {
+        subject.attribute_at_row_position(:first_name, 2)
+      }.to raise_error(described_class::WorksheetColumnNotFoundError)
+    end
   end
 
   describe "#update_attributes_at_row_position" do
@@ -71,6 +78,13 @@ RSpec.describe SheetsDB::Worksheet do
       expect(raw_worksheet).to receive(:[]=).with(2, 6, "tasties")
       expect(raw_worksheet).to receive(:synchronize)
       subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"], the_food: "tasties" }, row_position: 2)
+    end
+
+    it "raises a WorksheetColumnNotFoundError if accessing a column that does not exist" do
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
+      expect {
+        subject.update_attributes_at_row_position({ first_name: "Bonnie" }, row_position: 2)
+      }.to raise_error(described_class::WorksheetColumnNotFoundError)
     end
   end
 
