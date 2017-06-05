@@ -3,7 +3,7 @@ require_relative "worksheet/row"
 
 module SheetsDB
   class Worksheet
-    class WorksheetColumnNotFoundError < StandardError; end
+    class ColumnNotFoundError < StandardError; end
 
     include Enumerable
 
@@ -46,7 +46,7 @@ module SheetsDB
     def get_definition_and_column(attribute_name)
       attribute_definition = attribute_definitions.fetch(attribute_name, {})
       column_name = attribute_definition.fetch(:column_name, attribute_name.to_s)
-      raise WorksheetColumnNotFoundError, column_name if columns[column_name].nil?
+      raise ColumnNotFoundError, column_name if columns[column_name].nil?
       [
         attribute_definition,
         columns[column_name]
