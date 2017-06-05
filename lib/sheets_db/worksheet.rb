@@ -3,6 +3,8 @@ require_relative "worksheet/row"
 
 module SheetsDB
   class Worksheet
+    class ColumnNotFoundError < StandardError; end
+
     include Enumerable
 
     attr_reader :spreadsheet, :google_drive_resource, :type
@@ -43,9 +45,11 @@ module SheetsDB
 
     def get_definition_and_column(attribute_name)
       attribute_definition = attribute_definitions.fetch(attribute_name, {})
+      column_name = attribute_definition.fetch(:column_name, attribute_name.to_s)
+      raise ColumnNotFoundError, column_name if columns[column_name].nil?
       [
         attribute_definition,
-        columns[attribute_definition.fetch(:column_name, attribute_name.to_s)]
+        columns[column_name]
       ]
     end
 
