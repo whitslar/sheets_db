@@ -43,7 +43,7 @@ RSpec.describe SheetsDB::Spreadsheet do
       test_class.has_many :widgets, worksheet_name: "Widgets", class_name: :collection_class
       expect {
         subject.widgets
-      }.to raise_error(described_class::WorksheetNotFoundError)
+      }.to raise_error(described_class::WorksheetNotFoundError, "Widgets")
     end
   end
 
