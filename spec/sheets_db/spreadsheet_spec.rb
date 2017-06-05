@@ -34,6 +34,17 @@ RSpec.describe SheetsDB::Spreadsheet do
         test_class.has_many :widgets, worksheet_name: "Widgets2", class_name: :collection_class
       }.to raise_error(described_class::WorksheetAssociationAlreadyRegisteredError)
     end
+
+    it "raises an error if the worksheet is not found" do
+      allow(GoogleDriveSessionProxy::DUMMY_FILES[:spreadsheet]).
+        to receive(:worksheet_by_title).
+        with("Widgets").
+        and_return(nil)
+      test_class.has_many :widgets, worksheet_name: "Widgets", class_name: :collection_class
+      expect {
+        subject.widgets
+      }.to raise_error(described_class::WorksheetNotFoundError, "Widgets")
+    end
   end
 
   describe "#find_association_by_id" do

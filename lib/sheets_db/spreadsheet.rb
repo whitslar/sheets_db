@@ -1,19 +1,13 @@
 module SheetsDB
   class Spreadsheet < Resource
     class WorksheetAssociationAlreadyRegisteredError < StandardError; end
+    class WorksheetNotFoundError < StandardError; end
 
     set_resource_type GoogleDrive::Spreadsheet
 
     def self.has_many(resource, worksheet_name:, class_name:)
       register_worksheet_association(resource, worksheet_name: worksheet_name, class_name: class_name)
-      define_method(resource) do
-        @worksheets ||= {}
-        @worksheets[resource] ||= Worksheet.new(
-          spreadsheet: self,
-          google_drive_resource: google_drive_resource.worksheet_by_title(worksheet_name),
-          type: Support.constantize(class_name)
-        )
-      end
+      create_worksheet_association(resource, worksheet_name: worksheet_name, class_name: class_name)
     end
 
     def self.register_worksheet_association(resource, worksheet_name:, class_name:)
@@ -25,6 +19,21 @@ module SheetsDB
         worksheet_name: worksheet_name,
         class_name: class_name
       }
+    end
+
+    def self.create_worksheet_association(resource, worksheet_name:, class_name:)
+      define_method(resource) do
+        @worksheets ||= {}
+        @worksheets[resource] ||= begin
+          google_drive_worksheet = google_drive_resource.worksheet_by_title(worksheet_name)
+          raise WorksheetNotFoundError, worksheet_name if google_drive_worksheet.nil?
+          Worksheet.new(
+            spreadsheet: self,
+            google_drive_resource: google_drive_worksheet,
+            type: Support.constantize(class_name)
+          )
+        end
+      end
     end
 
     def find_association_by_id(association_name, id)
