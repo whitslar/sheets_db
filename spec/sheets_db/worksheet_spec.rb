@@ -180,19 +180,32 @@ RSpec.describe SheetsDB::Worksheet do
     end
 
     context "when type is Boolean" do
-      it "returns true for TRUE value" do
-        expect(subject.convert_value("TRUE", { type: :Boolean })).to eq(true)
-        expect(subject.convert_value("True", { type: :Boolean })).to eq(true)
+      it "returns results of calling #convert_to_boolean with raw_value" do
+        allow(subject).to receive(:convert_to_boolean).with("the_value").and_return(:a_result)
+        expect(subject.convert_value("the_value", { type: :Boolean })).to eq(:a_result)
       end
+    end
+  end
 
-      it "returns false for FALSE value" do
-        expect(subject.convert_value("FALSE", { type: :Boolean })).to eq(false)
-        expect(subject.convert_value("false", { type: :Boolean })).to eq(false)
-      end
+  describe "#convert_to_boolean" do
+    it "returns true if value in truthy list" do
+      expect(subject.convert_to_boolean("Y")).to eq(true)
+      expect(subject.convert_to_boolean("Yes")).to eq(true)
+      expect(subject.convert_to_boolean("true")).to eq(true)
+      expect(subject.convert_to_boolean("1")).to eq(true)
+    end
 
-      it "returns nil for unknown value" do
-        expect(subject.convert_value("goats", { type: :Boolean })).to eq(nil)
-      end
+    it "returns false if value in falsy list" do
+      expect(subject.convert_to_boolean("n")).to eq(false)
+      expect(subject.convert_to_boolean("NO")).to eq(false)
+      expect(subject.convert_to_boolean("fALSE")).to eq(false)
+      expect(subject.convert_to_boolean("0")).to eq(false)
+    end
+
+    it "returns nil if the value is not in truthy or falsy lists" do
+      expect(subject.convert_to_boolean(nil)).to be_nil
+      expect(subject.convert_to_boolean("whatever")).to be_nil
+      expect(subject.convert_to_boolean("")).to be_nil
     end
   end
 
