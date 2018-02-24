@@ -161,8 +161,12 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.convert_value("", { type: :whatever })).to be_nil
     end
 
-    it "returns given value if unrecognized type" do
-      expect(subject.convert_value("something", { type: :whatever })).to eq("something")
+    it "returns stripped value if unrecognized type" do
+      expect(subject.convert_value("  a string ", { type: :whatever })).to eq("a string")
+    end
+
+    it "returns unstripped value if strip is false" do
+      expect(subject.convert_value("  a string ", { strip: false, type: :whatever })).to eq("  a string ")
     end
 
     it "returns integer value if type is Integer" do

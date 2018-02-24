@@ -123,6 +123,7 @@ module SheetsDB
     end
 
     def convert_value(raw_value, attribute_definition)
+      raw_value = raw_value.strip if attribute_definition.fetch(:strip, true)
       return nil if raw_value == ""
       converted_value = case attribute_definition[:type].to_s
       when "Integer"
