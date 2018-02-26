@@ -122,7 +122,16 @@ module SheetsDB
       google_drive_resource.reload
     end
 
+    def convert_to_boolean(raw_value)
+      return nil if raw_value.nil?
+      trues = ["y", "yes", "true", "1"]
+      falses = ["n", "no", "false", "0"]
+      return true if trues.include?(raw_value.downcase)
+      return false if falses.include?(raw_value.downcase)
+    end
+
     def convert_value(raw_value, attribute_definition)
+      raw_value = raw_value.strip if attribute_definition.fetch(:strip, true)
       return nil if raw_value == ""
       converted_value = case attribute_definition[:type].to_s
       when "Integer"
@@ -130,7 +139,7 @@ module SheetsDB
       when "DateTime"
         DateTime.strptime(raw_value, "%m/%d/%Y %H:%M:%S")
       when "Boolean"
-        { "TRUE" => true, "FALSE" => false }.fetch(raw_value.upcase, nil)
+        convert_to_boolean(raw_value)
       else
         raw_value
       end
