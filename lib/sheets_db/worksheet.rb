@@ -85,6 +85,20 @@ module SheetsDB
       google_drive_resource.synchronize if synchronizing
     end
 
+    def next_available_row_position
+      google_drive_resource.num_rows + 1
+    end
+
+    def new(**attributes)
+      type.new(worksheet: self, row_position: nil).tap { |row|
+        row.stage_attributes(attributes)
+      }
+    end
+
+    def create!(**attributes)
+      new(**attributes).save!
+    end
+
     def each
       return to_enum(:each) unless block_given?
       (google_drive_resource.num_rows - 1).times do |i|

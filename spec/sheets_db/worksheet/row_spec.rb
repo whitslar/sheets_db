@@ -208,6 +208,17 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe "#new_row?" do
+    it "returns false if row_position set" do
+      expect(subject.new_row?).to eq(false)
+    end
+
+    it "returns true if no row_position set" do
+      subject = row_class.new(worksheet: worksheet, row_position: nil)
+      expect(subject.new_row?).to eq(true)
+    end
+  end
+
   describe "#stage_attributes" do
     it "sends setter method for each attribute given" do
       expect(subject).to receive(:foo=).with(:new_foo)
@@ -260,12 +271,27 @@ RSpec.describe SheetsDB::Worksheet::Row do
 
   describe "#save!" do
     it "updates staged attributes, foreign item changes, and attribute and association cache" do
+      expect(subject).to receive(:assign_next_row_position_if_not_set).ordered
       allow(subject).to receive(:staged_attributes).and_return(:the_staged_attributes)
       expect(worksheet).to receive(:update_attributes_at_row_position).
         with(:the_staged_attributes, row_position: 3).ordered
       expect(subject).to receive(:save_changed_foreign_items!)
       expect(subject).to receive(:reset_attributes_and_associations_cache).ordered
       subject.save!
+    end
+  end
+
+  describe "#assign_next_row_position_if_not_set" do
+    it "changes nothing if row position already set" do
+      subject.assign_next_row_position_if_not_set
+      expect(subject.row_position).to eq(3)
+    end
+
+    it "sets row_position to next available in worksheet if not already set" do
+      subject = row_class.new(worksheet: worksheet, row_position: nil)
+      allow(worksheet).to receive(:next_available_row_position).and_return(5)
+      subject.assign_next_row_position_if_not_set
+      expect(subject.row_position).to eq(5)
     end
   end
 

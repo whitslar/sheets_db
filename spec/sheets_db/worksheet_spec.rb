@@ -96,6 +96,33 @@ RSpec.describe SheetsDB::Worksheet do
     end
   end
 
+  describe "#new" do
+    let(:new_row) { instance_double(SheetsDB::Worksheet::Row) }
+
+    it "returns new instance of type with unset row_position" do
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: nil).
+        and_return(new_row)
+      allow(new_row).to receive(:stage_attributes).with({})
+      expect(subject.new).to eq(new_row)
+    end
+
+    it "pre-stages given attributes on new row" do
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: nil).
+        and_return(new_row)
+      allow(new_row).to receive(:stage_attributes).with({ foo: :bar })
+      expect(subject.new(foo: :bar)).to eq(new_row)
+    end
+  end
+
+  describe "#create!" do
+    it "returns #new row after calling #save!" do
+      new_row = instance_double(SheetsDB::Worksheet::Row)
+      allow(subject).to receive(:new).with(foo: :bar).and_return(new_row)
+      allow(new_row).to receive(:save!).and_return(:saved_row)
+      expect(subject.create!(foo: :bar)).to eq(:saved_row)
+    end
+  end
+
   describe "#all" do
     it "returns instances of type for each row in worksheet" do
       allow(row_class).to receive(:new).with(worksheet: subject, row_position: 2).
@@ -254,6 +281,13 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.hash).to eq(
         [described_class, raw_worksheet, row_class].hash
       )
+    end
+  end
+
+  describe "#next_available_row_position" do
+    it "returns worksheet's row count + 1" do
+      allow(raw_worksheet).to receive(:num_rows).and_return(6)
+      expect(subject.next_available_row_position).to eq(7)
     end
   end
 
