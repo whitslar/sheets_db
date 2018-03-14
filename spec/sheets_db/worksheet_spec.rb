@@ -123,6 +123,17 @@ RSpec.describe SheetsDB::Worksheet do
     end
   end
 
+  describe "#import!" do
+    it "in transaction, creates records for each set of attributes in given array" do
+      expect(subject).to receive(:disable_synchronization!).ordered
+      expect(subject).to receive(:create!).with(foo: :bar).ordered
+      expect(subject).to receive(:create!).with(baz: :narf).ordered
+      expect(raw_worksheet).to receive(:synchronize).ordered
+      expect(subject).to receive(:enable_synchronization!).ordered
+      subject.import!([{ foo: :bar }, { baz: :narf }])
+    end
+  end
+
   describe "#all" do
     it "returns instances of type for each row in worksheet" do
       allow(row_class).to receive(:new).with(worksheet: subject, row_position: 2).
@@ -293,24 +304,41 @@ RSpec.describe SheetsDB::Worksheet do
 
   describe "#transaction" do
     it "yields to given block with synchronizing set to false" do
+      expect(subject).to receive(:disable_synchronization!).ordered
       expect(subject).to receive(:reload!).ordered
       expect(raw_worksheet).to receive(:synchronize).ordered
+      expect(subject).to receive(:enable_synchronization!).ordered
 
       subject.transaction do
-        expect(subject.synchronizing).to eq(false)
         subject.reload!
       end
-      expect(subject.synchronizing).to eq(true)
     end
 
     it "does not synchronize, but restores synchronizing to true, if exception thrown" do
+      expect(subject).to receive(:disable_synchronization!).ordered
       expect(raw_worksheet).not_to receive(:synchronize)
+      expect(subject).to receive(:enable_synchronization!).ordered
       expect {
         subject.transaction do
-          expect(subject.synchronizing).to eq(false)
           raise ArgumentError
         end
       }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "#disable_synchronization!" do
+    it "sets synchronizing to false" do
+      expect(subject.synchronizing).to eq(true)
+      subject.disable_synchronization!
+      expect(subject.synchronizing).to eq(false)
+    end
+  end
+
+  describe "#enable_synchronization!" do
+    it "sets synchronizing to true" do
+      subject.disable_synchronization!
+      expect(subject.synchronizing).to eq(false)
+      subject.enable_synchronization!
       expect(subject.synchronizing).to eq(true)
     end
   end

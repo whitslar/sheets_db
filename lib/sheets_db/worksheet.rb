@@ -99,6 +99,14 @@ module SheetsDB
       new(**attributes).save!
     end
 
+    def import!(attribute_sets)
+      transaction do
+        attribute_sets.each do |attributes|
+          create!(**attributes)
+        end
+      end
+    end
+
     def each
       return to_enum(:each) unless block_given?
       (google_drive_resource.num_rows - 1).times do |i|
@@ -163,12 +171,20 @@ module SheetsDB
         converted_value
     end
 
-    def transaction
+    def enable_synchronization!
+      @synchronizing = true
+    end
+
+    def disable_synchronization!
       @synchronizing = false
+    end
+
+    def transaction
+      disable_synchronization!
       yield
       google_drive_resource.synchronize
     ensure
-      @synchronizing = true
+      enable_synchronization!
     end
   end
 end
