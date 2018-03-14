@@ -80,6 +80,14 @@ RSpec.describe SheetsDB::Worksheet do
       subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"], the_food: "tasties" }, row_position: 2)
     end
 
+    it "updates given attributes but does not synchronize if delaying sync" do
+      allow(subject).to receive(:synchronizing).and_return(false)
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: {} })
+      expect(raw_worksheet).to receive(:[]=).with(2, 2, "Bonnie")
+      expect(raw_worksheet).not_to receive(:synchronize)
+      subject.update_attributes_at_row_position({ first_name: "Bonnie" }, row_position: 2)
+    end
+
     it "raises a ColumnNotFoundError if accessing a column that does not exist" do
       allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
       expect {
@@ -246,6 +254,30 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.hash).to eq(
         [described_class, raw_worksheet, row_class].hash
       )
+    end
+  end
+
+  describe "#transaction" do
+    it "yields to given block with synchronizing set to false" do
+      expect(subject).to receive(:reload!).ordered
+      expect(raw_worksheet).to receive(:synchronize).ordered
+
+      subject.transaction do
+        expect(subject.synchronizing).to eq(false)
+        subject.reload!
+      end
+      expect(subject.synchronizing).to eq(true)
+    end
+
+    it "does not synchronize, but restores synchronizing to true, if exception thrown" do
+      expect(raw_worksheet).not_to receive(:synchronize)
+      expect {
+        subject.transaction do
+          expect(subject.synchronizing).to eq(false)
+          raise ArgumentError
+        end
+      }.to raise_error(ArgumentError)
+      expect(subject.synchronizing).to eq(true)
     end
   end
 end
