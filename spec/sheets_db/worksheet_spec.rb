@@ -80,11 +80,57 @@ RSpec.describe SheetsDB::Worksheet do
       subject.update_attributes_at_row_position({ first_name: "Bonnie", last_name: "McFragile", colors: ["green", "white"], the_food: "tasties" }, row_position: 2)
     end
 
+    it "updates given attributes but does not synchronize if delaying sync" do
+      allow(subject).to receive(:synchronizing).and_return(false)
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: {} })
+      expect(raw_worksheet).to receive(:[]=).with(2, 2, "Bonnie")
+      expect(raw_worksheet).not_to receive(:synchronize)
+      subject.update_attributes_at_row_position({ first_name: "Bonnie" }, row_position: 2)
+    end
+
     it "raises a ColumnNotFoundError if accessing a column that does not exist" do
       allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
       expect {
         subject.update_attributes_at_row_position({ first_name: "Bonnie" }, row_position: 2)
       }.to raise_error(described_class::ColumnNotFoundError)
+    end
+  end
+
+  describe "#new" do
+    let(:new_row) { instance_double(SheetsDB::Worksheet::Row) }
+
+    it "returns new instance of type with unset row_position" do
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: nil).
+        and_return(new_row)
+      allow(new_row).to receive(:stage_attributes).with({})
+      expect(subject.new).to eq(new_row)
+    end
+
+    it "pre-stages given attributes on new row" do
+      allow(row_class).to receive(:new).with(worksheet: subject, row_position: nil).
+        and_return(new_row)
+      allow(new_row).to receive(:stage_attributes).with({ foo: :bar })
+      expect(subject.new(foo: :bar)).to eq(new_row)
+    end
+  end
+
+  describe "#create!" do
+    it "returns #new row after calling #save!" do
+      new_row = instance_double(SheetsDB::Worksheet::Row)
+      allow(subject).to receive(:new).with(foo: :bar).and_return(new_row)
+      allow(new_row).to receive(:save!).and_return(:saved_row)
+      expect(subject.create!(foo: :bar)).to eq(:saved_row)
+    end
+  end
+
+  describe "#import!" do
+    it "in transaction, creates records for each set of attributes in given array" do
+      expect(subject).to receive(:disable_synchronization!).ordered
+      expect(subject).to receive(:create!).with(foo: :bar).ordered
+      expect(subject).to receive(:create!).with(baz: :narf).ordered
+      expect(raw_worksheet).to receive(:synchronize).ordered
+      expect(subject).to receive(:enable_synchronization!).ordered
+      subject.import!([{ foo: :bar }, { baz: :narf }])
     end
   end
 
@@ -246,6 +292,54 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.hash).to eq(
         [described_class, raw_worksheet, row_class].hash
       )
+    end
+  end
+
+  describe "#next_available_row_position" do
+    it "returns worksheet's row count + 1" do
+      allow(raw_worksheet).to receive(:num_rows).and_return(6)
+      expect(subject.next_available_row_position).to eq(7)
+    end
+  end
+
+  describe "#transaction" do
+    it "yields to given block with synchronizing set to false" do
+      expect(subject).to receive(:disable_synchronization!).ordered
+      expect(subject).to receive(:reload!).ordered
+      expect(raw_worksheet).to receive(:synchronize).ordered
+      expect(subject).to receive(:enable_synchronization!).ordered
+
+      subject.transaction do
+        subject.reload!
+      end
+    end
+
+    it "does not synchronize, but restores synchronizing to true, if exception thrown" do
+      expect(subject).to receive(:disable_synchronization!).ordered
+      expect(raw_worksheet).not_to receive(:synchronize)
+      expect(subject).to receive(:enable_synchronization!).ordered
+      expect {
+        subject.transaction do
+          raise ArgumentError
+        end
+      }.to raise_error(ArgumentError)
+    end
+  end
+
+  describe "#disable_synchronization!" do
+    it "sets synchronizing to false" do
+      expect(subject.synchronizing).to eq(true)
+      subject.disable_synchronization!
+      expect(subject.synchronizing).to eq(false)
+    end
+  end
+
+  describe "#enable_synchronization!" do
+    it "sets synchronizing to true" do
+      subject.disable_synchronization!
+      expect(subject.synchronizing).to eq(false)
+      subject.enable_synchronization!
+      expect(subject.synchronizing).to eq(true)
     end
   end
 end

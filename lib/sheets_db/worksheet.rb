@@ -7,12 +7,13 @@ module SheetsDB
 
     include Enumerable
 
-    attr_reader :spreadsheet, :google_drive_resource, :type
+    attr_reader :spreadsheet, :google_drive_resource, :type, :synchronizing
 
     def initialize(spreadsheet:, google_drive_resource:, type:)
       @spreadsheet = spreadsheet
       @google_drive_resource = google_drive_resource
       @type = type
+      @synchronizing = true
     end
 
     def ==(other)
@@ -81,7 +82,29 @@ module SheetsDB
         assignment_value = attribute_definition[:multiple] ? value.join(",") : value
         google_drive_resource[row_position, column.column_position] = assignment_value
       end
-      google_drive_resource.synchronize
+      google_drive_resource.synchronize if synchronizing
+    end
+
+    def next_available_row_position
+      google_drive_resource.num_rows + 1
+    end
+
+    def new(**attributes)
+      type.new(worksheet: self, row_position: nil).tap { |row|
+        row.stage_attributes(attributes)
+      }
+    end
+
+    def create!(**attributes)
+      new(**attributes).save!
+    end
+
+    def import!(attribute_sets)
+      transaction do
+        attribute_sets.each do |attributes|
+          create!(**attributes)
+        end
+      end
     end
 
     def each
@@ -146,6 +169,22 @@ module SheetsDB
       attribute_definition[:transform] ?
         attribute_definition[:transform].call(converted_value) :
         converted_value
+    end
+
+    def enable_synchronization!
+      @synchronizing = true
+    end
+
+    def disable_synchronization!
+      @synchronizing = false
+    end
+
+    def transaction
+      disable_synchronization!
+      yield
+      google_drive_resource.synchronize
+    ensure
+      enable_synchronization!
     end
   end
 end

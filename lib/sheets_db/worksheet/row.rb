@@ -110,6 +110,10 @@ module SheetsDB
         @changed_foreign_items = []
       end
 
+      def new_row?
+        row_position.nil?
+      end
+
       def get_modified_attribute(name)
         loaded_attributes.fetch(name, {}).
           fetch(:changed)
@@ -164,15 +168,18 @@ module SheetsDB
       end
 
       def save!
+        assign_next_row_position_if_not_set
         worksheet.update_attributes_at_row_position(staged_attributes, row_position: row_position)
         save_changed_foreign_items!
         reset_attributes_and_associations_cache
       end
 
+      def assign_next_row_position_if_not_set
+        @row_position ||= worksheet.next_available_row_position
+      end
+
       def save_changed_foreign_items!
-        changed_foreign_items.each do |foreign_item|
-          foreign_item.save!
-        end
+        changed_foreign_items.each(&:save!)
       end
 
       def reset_attributes_and_associations_cache
