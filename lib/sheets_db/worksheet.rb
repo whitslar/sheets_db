@@ -45,17 +45,24 @@ module SheetsDB
     end
 
     def get_definition_and_column(attribute_name)
-      attribute_definition = attribute_definitions.fetch(attribute_name, {})
+      attribute_definition = attribute_definitions.fetch(attribute_name)
       column_name = attribute_definition.fetch(:column_name, attribute_name.to_s)
-      raise ColumnNotFoundError, column_name if columns[column_name].nil?
       [
         attribute_definition,
         columns[column_name]
       ]
     end
 
+    def value_if_column_missing(attribute_definition)
+      unless attribute_definition[:if_column_missing]
+        raise ColumnNotFoundError, attribute_definition[:column_name]
+      end
+      attribute_definition[:if_column_missing].call
+    end
+
     def attribute_at_row_position(attribute_name, row_position)
       attribute_definition, column = get_definition_and_column(attribute_name)
+      return value_if_column_missing(attribute_definition) unless column
       raw_value = read_value_from_google_drive_resource(
         dimensions: [row_position, column.column_position],
         attribute_definition: attribute_definition
@@ -79,6 +86,7 @@ module SheetsDB
     def update_attributes_at_row_position(staged_attributes, row_position:)
       staged_attributes.each do |attribute_name, value|
         attribute_definition, column = get_definition_and_column(attribute_name)
+        raise ColumnNotFoundError, column unless column
         assignment_value = attribute_definition[:multiple] ? value.join(",") : value
         google_drive_resource[row_position, column.column_position] = assignment_value
       end

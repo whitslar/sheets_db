@@ -48,18 +48,20 @@ RSpec.describe SheetsDB::Worksheet::Row do
         multiple: false,
         transform: nil,
         column_name: "the_name",
-        association: false
+        association: false,
+        if_column_missing: nil
       })
     end
 
     it "allows overridden settings" do
-      row_class.attribute :the_name, type: "foo", multiple: "sure", transform: "yeah", column_name: "Zoop"
+      row_class.attribute :the_name, type: "foo", multiple: "sure", transform: "yeah", column_name: "Zoop", if_column_missing: :a_proc
       expect(row_class.attribute_definitions.fetch(:the_name)).to eq({
         type: "foo",
         multiple: "sure",
         transform: "yeah",
         column_name: "Zoop",
-        association: false
+        association: false,
+        if_column_missing: :a_proc
       })
     end
   end
