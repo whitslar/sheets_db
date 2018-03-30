@@ -56,11 +56,27 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.attribute_at_row_position(:first_name, 2)).to eq("4/15")
     end
 
-    it "raises a ColumnNotFoundError if accessing a column that does not exist" do
+    it "returns value_if_column_missing if column not found" do
       allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
+      allow(subject).to receive(:value_if_column_missing).with({ column_name: "Wrong Column" }).and_return(:the_missing_value)
+      expect(subject.attribute_at_row_position(:first_name, 2)).to eq(:the_missing_value)
+    end
+  end
+
+  describe "#value_if_column_missing" do
+    it "raises a ColumnNotFoundError if no if_column_missing proc" do
+      definition = { column_name: "Wrong Column" }
       expect {
-        subject.attribute_at_row_position(:first_name, 2)
-      }.to raise_error(described_class::ColumnNotFoundError)
+        subject.value_if_column_missing(definition)
+      }.to raise_error(described_class::ColumnNotFoundError, "Wrong Column")
+    end
+
+    it "returns results of if_column_missing proc" do
+      definition = {
+        column_name: "Wrong Column",
+        if_column_missing: Proc.new { :the_missing_value }
+      }
+      expect(subject.value_if_column_missing(definition)).to eq(:the_missing_value)
     end
   end
 
