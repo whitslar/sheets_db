@@ -169,7 +169,7 @@ end
 
 The only required argument to the `attribute` class method is the name of the column itself.  All other options are optional:
 
-`type`: The `attribute` method currently supports four types: `Integer`, `DateTime`, `Boolean` and the default `String`.  Any other value given to the `type` option will be ignored and the default will be used.  (Note that the `Boolean` type must be specified as a string or symbol (`type: :Boolean`) since there is no actual `Boolean` class in Ruby.)
+`type`: The `attribute` method currently supports five types: `Integer`, `Float`, `DateTime`, `Boolean` and the default `String`.  Any other value given to the `type` option will be ignored and the default will be used.  (Note that the `Boolean` type must be specified as a string or symbol (`type: :Boolean`) since there is no actual `Boolean` class in Ruby.)
 
 `multiple`: This option defaults to false.  If true, it tells SheetsDB to parse the value as a comma-separated list of values, and return an array by splitting on the comma (if no comma is found, it will return a single element array).
 

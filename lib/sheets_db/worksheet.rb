@@ -167,6 +167,8 @@ module SheetsDB
       converted_value = case attribute_definition[:type].to_s
       when "Integer"
         raw_value.to_i
+      when "Float"
+        raw_value.to_f
       when "DateTime"
         DateTime.strptime(raw_value, "%m/%d/%Y %H:%M:%S")
       when "Boolean"

@@ -235,6 +235,10 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.convert_value("14", { type: Integer })).to eq(14)
     end
 
+    it "returns float value if type is Float" do
+      expect(subject.convert_value("1.54", { type: Float })).to eq(1.54)
+    end
+
     it "returns DateTime value if type is DateTime" do
       expect(subject.convert_value("4/15/2016 10:15:30", { type: DateTime })).to eq(
         DateTime.parse("2016-04-15 10:15:30")
