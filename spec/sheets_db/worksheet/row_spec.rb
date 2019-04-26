@@ -8,6 +8,25 @@ RSpec.describe SheetsDB::Worksheet::Row do
     row_class.instance_variable_set(:@attribute_definitions, nil)
   end
 
+  describe ".attribute_definitions" do
+    before(:each) do
+      row_class.attribute :foo
+    end
+
+    it "inherits from base class" do
+      subclass = Class.new(row_class)
+      expect(subclass.attribute_definitions.keys).to include(:foo)
+    end
+
+    it "is not shared between subclasses" do
+      subclass1 = Class.new(row_class)
+      subclass2 = Class.new(row_class)
+      subclass1.attribute :smarf
+      expect(subclass1.attribute_definitions.keys).to eq([:foo, :smarf])
+      expect(subclass2.attribute_definitions.keys).to eq([:foo])
+    end
+  end
+
   describe ".attribute" do
     context "dynamic methods" do
       before(:each) do

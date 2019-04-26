@@ -7,7 +7,10 @@ module SheetsDB
       class << self
         def inherited(subclass)
           super
-          subclass.instance_variable_set(:@attribute_definitions, @attribute_definitions)
+          subclass.instance_variable_set(
+            :@attribute_definitions,
+            Marshal.load(Marshal.dump(@attribute_definitions))
+          )
         end
 
         def attribute(name, type: String, multiple: false, transform: nil, column_name: nil, if_column_missing: nil)
