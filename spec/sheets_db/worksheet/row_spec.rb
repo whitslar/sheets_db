@@ -73,12 +73,12 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
 
     it "allows overridden settings" do
-      row_class.attribute :the_name, type: "foo", multiple: "sure", transform: "yeah", column_name: "Zoop", if_column_missing: :a_proc
+      row_class.attribute :the_name, type: "foo", multiple: "sure", transform: "yeah", column_name: :zoop, if_column_missing: :a_proc
       expect(row_class.attribute_definitions.fetch(:the_name)).to eq({
         type: "foo",
         multiple: "sure",
         transform: "yeah",
-        column_name: "Zoop",
+        column_name: "zoop",
         association: false,
         if_column_missing: :a_proc
       })

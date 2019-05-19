@@ -46,10 +46,10 @@ module SheetsDB
 
     def get_definition_and_column(attribute_name)
       attribute_definition = attribute_definitions.fetch(attribute_name)
-      column_name = attribute_definition.fetch(:column_name, attribute_name.to_s)
+      column_name = attribute_definition.fetch(:column_name, attribute_name)
       [
         attribute_definition,
-        columns[column_name]
+        columns[column_name.to_s]
       ]
     end
 
