@@ -14,7 +14,7 @@ module SheetsDB
         end
 
         def attribute(name, type: String, multiple: false, transform: nil, column_name: nil, if_column_missing: nil)
-          register_attribute(name, type: type, multiple: multiple, transform: transform, column_name: column_name || name.to_s, association: false, if_column_missing: if_column_missing)
+          register_attribute(name, type: type, multiple: multiple, transform: transform, column_name: (column_name || name).to_s, association: false, if_column_missing: if_column_missing)
 
           define_method(name) do
             begin
