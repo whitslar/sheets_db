@@ -229,6 +229,13 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe "#column_names" do
+    it "delegates to worksheet" do
+      allow(worksheet).to receive(:column_names).and_return(:the_column_names)
+      expect(subject.column_names).to eq(:the_column_names)
+    end
+  end
+
   describe "#new_row?" do
     it "returns false if row_position set" do
       expect(subject.new_row?).to eq(false)

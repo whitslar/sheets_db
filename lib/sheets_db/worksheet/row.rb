@@ -113,6 +113,10 @@ module SheetsDB
         @changed_foreign_items = []
       end
 
+      def column_names
+        worksheet.column_names
+      end
+
       def new_row?
         row_position.nil?
       end
