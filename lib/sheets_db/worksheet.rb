@@ -40,6 +40,10 @@ module SheetsDB
       end
     end
 
+    def column_names
+      columns.keys
+    end
+
     def attribute_definitions
       type.attribute_definitions
     end

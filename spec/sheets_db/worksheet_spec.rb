@@ -211,6 +211,19 @@ RSpec.describe SheetsDB::Worksheet do
     end
   end
 
+  describe "#column_names" do
+    it "returns column names" do
+      expect(subject.column_names).to eq([
+        "id",
+        "first_name",
+        "last_name",
+        "colors",
+        "Food (Titleized)"
+      ])
+    end
+  end
+
+
   describe "#reload!" do
     it "reloads the google_drive_resource worksheet" do
       expect(raw_worksheet).to receive(:reload)
