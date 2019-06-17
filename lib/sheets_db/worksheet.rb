@@ -61,7 +61,7 @@ module SheetsDB
       unless attribute_definition[:if_column_missing]
         raise ColumnNotFoundError, attribute_definition[:column_name]
       end
-      attribute_definition[:if_column_missing].call
+      instance_exec(&attribute_definition[:if_column_missing])
     end
 
     def attribute_at_row_position(attribute_name, row_position)
