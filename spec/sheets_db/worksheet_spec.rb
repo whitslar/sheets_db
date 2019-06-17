@@ -72,10 +72,12 @@ RSpec.describe SheetsDB::Worksheet do
     end
 
     it "returns results of if_column_missing proc" do
+      row_class.attribute :wow
       definition = {
         column_name: "Wrong Column",
-        if_column_missing: Proc.new { :the_missing_value }
+        if_column_missing: Proc.new { wow }
       }
+      allow(subject).to receive(:wow).and_return(:the_missing_value)
       expect(subject.value_if_column_missing(definition)).to eq(:the_missing_value)
     end
   end
