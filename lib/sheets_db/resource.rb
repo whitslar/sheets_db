@@ -2,6 +2,7 @@ module SheetsDB
   class Resource
     class ResourceTypeMismatchError < StandardError; end
     class CollectionTypeAlreadyRegisteredError < StandardError; end
+    class ChildResourceNotFoundError < StandardError; end
 
     class << self
       attr_reader :resource_type
@@ -17,8 +18,8 @@ module SheetsDB
 
       def find_by_id(id, session: SheetsDB::Session.default)
         google_drive_resource = session.raw_file_by_id(id)
-        if @resource_type && !google_drive_resource.is_a?(@resource_type)
-          fail(ResourceTypeMismatchError, "The file with id #{id} is not a #{@resource_type}")
+        if resource_type && !google_drive_resource.is_a?(resource_type)
+          fail(ResourceTypeMismatchError, "The file with id #{id} is not a #{resource_type}")
         end
         new(google_drive_resource)
       end
@@ -26,10 +27,10 @@ module SheetsDB
       def belongs_to_many(resource, class_name:)
         register_association(resource, class_name: class_name, resource_type: :parents)
         define_method(resource) do
-          result = instance_variable_get(:"@#{resource}")
-          result || instance_variable_set(:"@#{resource}",
-            google_drive_resource.parents.map { |id| Support.constantize(class_name).find_by_id(id) }
-          )
+          @associated_resources ||= {}
+          @associated_resources[resource] ||= google_drive_resource.parents.map { |id|
+            Support.constantize(class_name).find_by_id(id)
+          }
         end
       end
 
@@ -43,6 +44,15 @@ module SheetsDB
           class_name: class_name
         }
       end
+
+      def association_methods_for_type(type)
+        raise ArgumentError unless %i[spreadsheet worksheet subcollection].include?(type)
+
+        google_type = type == :spreadsheet ? :file : type
+        create_prefix = type == :worksheet ? :add : :create
+
+        OpenStruct.new(find: :"#{google_type}_by_title", create: :"#{create_prefix}_#{type}")
+      end
     end
 
     extend Forwardable
@@ -54,6 +64,16 @@ module SheetsDB
 
     def initialize(google_drive_resource)
       @google_drive_resource = google_drive_resource
+    end
+
+    def reload!
+      @associated_resources = nil
+      @anonymous_resources = nil
+      google_drive_resource.reload_metadata
+    end
+
+    def delete!
+      google_drive_resource.delete
     end
 
     def ==(other)
@@ -74,6 +94,15 @@ module SheetsDB
         created_at: created_at,
         updated_at: updated_at
       }
+    end
+
+    def find_child_google_drive_resource_by(type:, title:, create: false)
+      association_methods = self.class.association_methods_for_type(type)
+      child_resource = google_drive_resource.public_send(association_methods.find, title)
+      child_resource ||= google_drive_resource.public_send(association_methods.create, title) if create
+      raise ChildResourceNotFoundError, [self, type, title] if child_resource.nil?
+
+      child_resource
     end
   end
 end

@@ -1,7 +1,8 @@
 RSpec.describe SheetsDB::Worksheet::Row do
   let(:row_class) { Class.new(described_class) }
   let(:spreadsheet) { SheetsDB::Spreadsheet.new(google_drive_resource: :a_spreadsheet) }
-  let(:worksheet) { SheetsDB::Worksheet.new(spreadsheet: spreadsheet, google_drive_resource: :a_worksheet, type: row_class) }
+  let(:raw_worksheet) { instance_double(GoogleDrive::Worksheet, title: "The Worksheet") }
+  let(:worksheet) { SheetsDB::Worksheet.new(spreadsheet: spreadsheet, google_drive_resource: raw_worksheet, type: row_class) }
   subject { row_class.new(worksheet: worksheet, row_position: 3) }
 
   before(:each) do
@@ -283,7 +284,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
     it "clears the associations and attributes caches" do
       subject.instance_variable_set(:@loaded_attributes, :some_attributes)
       subject.instance_variable_set(:@loaded_associations, :some_associations)
-      subject.reset_attributes_and_associations_cache
+      expect(subject.reset_attributes_and_associations_cache).to eq(subject)
       expect(subject.loaded_attributes).to be_empty
       expect(subject.loaded_associations).to be_empty
     end
@@ -299,6 +300,14 @@ RSpec.describe SheetsDB::Worksheet::Row do
     end
   end
 
+  describe "#reload!" do
+    it "reloads worksheet, resets caches, and returns self" do
+      expect(worksheet).to receive(:reload!).ordered
+      expect(subject).to receive(:reset_attributes_and_associations_cache).ordered
+      expect(subject.reload!).to eq(subject)
+    end
+  end
+
   describe "#save!" do
     it "updates staged attributes, foreign item changes, and attribute and association cache" do
       expect(subject).to receive(:assign_next_row_position_if_not_set).ordered
@@ -307,7 +316,7 @@ RSpec.describe SheetsDB::Worksheet::Row do
         with(:the_staged_attributes, row_position: 3).ordered
       expect(subject).to receive(:save_changed_foreign_items!)
       expect(subject).to receive(:reset_attributes_and_associations_cache).ordered
-      subject.save!
+      expect(subject.save!).to eq(subject)
     end
   end
 

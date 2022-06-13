@@ -7,13 +7,32 @@ module SheetsDB
 
     include Enumerable
 
-    attr_reader :spreadsheet, :google_drive_resource, :type, :synchronizing
+    attr_reader :spreadsheet, :worksheet_title, :google_drive_resource, :synchronizing
 
-    def initialize(spreadsheet:, google_drive_resource:, type:)
+    def initialize(spreadsheet:, google_drive_resource:, type: nil)
       @spreadsheet = spreadsheet
       @google_drive_resource = google_drive_resource
+      @worksheet_title = google_drive_resource.title
       @type = type
       @synchronizing = true
+    end
+
+    def set_up!
+      if google_drive_resource.num_rows == 0
+        registered_column_names = attribute_definitions.map { |name, definition| definition[:column_name] }
+        write_matrix!([registered_column_names])
+      end
+      self
+    end
+
+    def type
+      @type || @generated_type ||= begin
+        Class.new(Row).tap { |generated_type_class|
+          column_names.each do |name|
+            generated_type_class.attribute name.to_sym
+          end
+        }
+      end
     end
 
     def ==(other)
@@ -31,7 +50,8 @@ module SheetsDB
     def columns
       @columns ||= begin
         {}.tap { |directory|
-          google_drive_resource.rows.first.each_with_index do |name, i|
+          header_row = google_drive_resource.rows.first || []
+          header_row.each_with_index do |name, i|
             unless name == ""
               directory[name] = Column.new(name: name, column_position: i + 1)
             end
@@ -98,12 +118,20 @@ module SheetsDB
 
     def update_attributes_at_row_position(staged_attributes, row_position:)
       staged_attributes.each do |attribute_name, value|
-        attribute_definition, column = get_definition_and_column(attribute_name)
-        raise ColumnNotFoundError, column unless column
-        assignment_value = attribute_definition[:multiple] ? value.join(",") : value
-        google_drive_resource[row_position, column.column_position] = assignment_value
+        update_attribute_at_row_position(
+          attribute_name: attribute_name,
+          value: value,
+          row_position: row_position
+        )
       end
-      google_drive_resource.synchronize if synchronizing
+      synchronize! if synchronizing
+    end
+
+    def update_attribute_at_row_position(attribute_name:, value:, row_position:)
+      attribute_definition, column = get_definition_and_column(attribute_name)
+      raise ColumnNotFoundError, column unless column
+      assignment_value = attribute_definition[:multiple] ? value.join(",") : value
+      google_drive_resource[row_position, column.column_position] = assignment_value
     end
 
     def next_available_row_position
@@ -163,7 +191,11 @@ module SheetsDB
     end
 
     def reload!
+      @columns = nil
+      @existing_raw_data = nil
+      @generated_type = nil
       google_drive_resource.reload
+      self
     end
 
     def convert_to_boolean(raw_value)
@@ -205,9 +237,64 @@ module SheetsDB
     def transaction
       disable_synchronization!
       yield
-      google_drive_resource.synchronize
+      synchronize!
     ensure
       enable_synchronization!
+    end
+
+    def delete_google_drive_resource!
+      google_drive_resource.delete
+      @google_drive_resource = nil
+      spreadsheet.reload!
+    end
+
+    def truncate!
+      clear_google_drive_resource!
+      set_up!
+      reload!
+    end
+
+    def write_matrix(matrix, rewrite: false, save: false)
+      clear_google_drive_resource if rewrite
+      google_drive_resource.update_cells(1, 1, matrix)
+      synchronize! if save
+      self
+    end
+
+    def write_matrix!(matrix, **options)
+      write_matrix(matrix, **options.merge(save: true))
+    end
+
+    def write_raw_data(data, **options)
+      raise ArgumentError, "mismatched keys" if data.map(&:keys).uniq.count > 1
+
+      write_matrix(data.map(&:values).prepend(data.first.keys), **options)
+    end
+
+    def write_raw_data!(data, **options)
+      write_raw_data(data, **options.merge(save: true))
+    end
+
+    def clear_google_drive_resource(save: false)
+      empty_matrix = Array.new(google_drive_resource.num_rows, Array.new(google_drive_resource.num_cols))
+      write_matrix(empty_matrix, save: save)
+    end
+
+    def clear_google_drive_resource!
+      clear_google_drive_resource(save: true)
+    end
+
+    def synchronize!
+      google_drive_resource.synchronize
+      @existing_raw_data = nil
+      self
+    end
+
+    def existing_raw_data
+      @existing_raw_data ||= begin
+        rows = google_drive_resource.rows
+        rows.drop(1).map { |row| Hash[rows.first.zip(row)] }
+      end
     end
   end
 end

@@ -172,6 +172,7 @@ module SheetsDB
       def reload!
         worksheet.reload!
         reset_attributes_and_associations_cache
+        self
       end
 
       def save!
@@ -179,6 +180,7 @@ module SheetsDB
         worksheet.update_attributes_at_row_position(staged_attributes, row_position: row_position)
         save_changed_foreign_items!
         reset_attributes_and_associations_cache
+        self
       end
 
       def assign_next_row_position_if_not_set
@@ -192,6 +194,7 @@ module SheetsDB
       def reset_attributes_and_associations_cache
         @loaded_attributes = {}
         @loaded_associations = {}
+        self
       end
 
       def staged_attributes
