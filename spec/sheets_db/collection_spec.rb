@@ -1,18 +1,11 @@
 RSpec.describe SheetsDB::Collection do
   let(:test_class) { Class.new(described_class) }
+  let(:raw_collection) { GoogleDriveSessionProxy::DUMMY_FILES[:collection] }
 
-  subject { test_class.new(GoogleDriveSessionProxy::DUMMY_FILES[:collection]) }
+  subject { test_class.new(raw_collection) }
 
-  describe ".find_by_id" do
-    it "returns instance for given id" do
-      expect(described_class.find_by_id(:collection)).to eq(subject)
-    end
-
-    it "raises error if id does not represent collection" do
-      expect {
-        described_class.find_by_id(:file)
-      }.to raise_error(described_class::ResourceTypeMismatchError)
-    end
+  it "is a SheetsDB::Resource" do
+    expect(subject).to be_a(SheetsDB::Resource)
   end
 
   describe ".has_many" do
@@ -20,7 +13,7 @@ RSpec.describe SheetsDB::Collection do
       test_association_class = Class.new(SheetsDB::Collection)
       allow(SheetsDB::Support).to receive(:constantize).with("Goose").and_return(test_association_class)
       test_class.has_many :teams, class_name: "Goose"
-      allow(GoogleDriveSessionProxy::DUMMY_FILES[:collection]).
+      allow(raw_collection).
         to receive(:subcollections).
         and_return([:foo, :bar])
       expect(subject.teams).to eq([
@@ -33,7 +26,7 @@ RSpec.describe SheetsDB::Collection do
       test_association_class = Class.new(SheetsDB::Spreadsheet)
       allow(SheetsDB::Support).to receive(:constantize).with("Goose").and_return(test_association_class)
       test_class.has_many :friends, class_name: "Goose", resource_type: :spreadsheets
-      allow(GoogleDriveSessionProxy::DUMMY_FILES[:collection]).
+      allow(raw_collection).
         to receive(:spreadsheets).
         and_return([:foo, :bar])
       expect(subject.friends).to eq([
@@ -61,6 +54,42 @@ RSpec.describe SheetsDB::Collection do
         test_class.has_many :teams, class_name: "Foo"
         test_class.has_many :cadres, class_name: "Bar"
       }.to raise_error(described_class::CollectionTypeAlreadyRegisteredError)
+    end
+  end
+
+  %i[
+    spreadsheet
+    subcollection
+  ].each do |child_resource_type|
+    method_name = :"google_drive_#{child_resource_type}_by_title"
+    describe "##{method_name}" do
+      it "calls find_child_google_drive_resource_by for given type" do
+        allow(subject).to receive(:find_child_google_drive_resource_by).
+          with(type: child_resource_type, title: :the_title, create: :maybe).
+          and_return(:the_result)
+        expect(
+          subject.public_send(method_name, :the_title, create: :maybe)
+        ).to eq(:the_result)
+      end
+    end
+  end
+
+  describe "#spreadsheets" do
+    it "returns base Spreadsheet instance for each of collection's spreadsheet resources" do
+      allow(raw_collection).to receive(:spreadsheets).and_return([:s1, :s2])
+      allow(SheetsDB::Spreadsheet).to receive(:new).with(:s1).and_return(:sds1)
+      allow(SheetsDB::Spreadsheet).to receive(:new).with(:s2).and_return(:sds2)
+      expect(subject.spreadsheets).to eq([:sds1, :sds2])
+    end
+  end
+
+  describe "#collections" do
+    it "returns base Collection instance for each of collection's subcollection resources" do
+      allow(raw_collection).to receive(:subcollections).and_return([:c1, :c2])
+      allow(SheetsDB::Collection).to receive(:new).and_call_original
+      allow(SheetsDB::Collection).to receive(:new).with(:c1).and_return(:sdc1)
+      allow(SheetsDB::Collection).to receive(:new).with(:c2).and_return(:sdc2)
+      expect(subject.collections).to eq([:sdc1, :sdc2])
     end
   end
 end
