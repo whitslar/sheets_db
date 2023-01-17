@@ -49,12 +49,21 @@ module SheetsDB
     end
 
     def get_definition_and_column(attribute_name)
-      attribute_definition = attribute_definitions.fetch(attribute_name)
-      column_name = attribute_definition.fetch(:column_name, attribute_name)
+      column_name = first_existing_column_name(attribute_name)
       [
-        attribute_definition,
-        columns[column_name.to_s]
+        attribute_definitions.fetch(attribute_name),
+        column_name && columns[column_name.to_s]
       ]
+    end
+
+    def first_existing_column_name(attribute_name)
+      attribute_definition = attribute_definitions.fetch(attribute_name)
+      [
+        attribute_definition.fetch(:column_name, attribute_name),
+        attribute_definition.fetch(:aliases, [])
+      ].flatten.detect { |name|
+        columns.key?(name.to_s)
+      }
     end
 
     def value_if_column_missing(attribute_definition)

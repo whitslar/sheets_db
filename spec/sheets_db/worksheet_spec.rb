@@ -27,6 +27,12 @@ RSpec.describe SheetsDB::Worksheet do
       expect(subject.attribute_at_row_position(:the_food, 2)).to eq("cabbage")
     end
 
+    it "utilizes column aliases, returning value from first alias column found" do
+      allow(raw_worksheet).to receive(:[]).with(2, 5).and_return("periwinkle")
+      allow(row_class).to receive(:attribute_definitions).and_return({ colours: { aliases: [:sparkles, :colors] } })
+      expect(subject.attribute_at_row_position(:colours, 2)).to eq("periwinkle")
+    end
+
     it "converts the given value according to type" do
       allow(raw_worksheet).to receive(:[]).with(2, 2).and_return("Anna")
       allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { type: :the_type } })
@@ -57,8 +63,8 @@ RSpec.describe SheetsDB::Worksheet do
     end
 
     it "returns value_if_column_missing if column not found" do
-      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column" } })
-      allow(subject).to receive(:value_if_column_missing).with({ column_name: "Wrong Column" }).and_return(:the_missing_value)
+      allow(row_class).to receive(:attribute_definitions).and_return({ first_name: { column_name: "Wrong Column", aliases: ["also wrong"] } })
+      allow(subject).to receive(:value_if_column_missing).with({ column_name: "Wrong Column", aliases: ["also wrong"] }).and_return(:the_missing_value)
       expect(subject.attribute_at_row_position(:first_name, 2)).to eq(:the_missing_value)
     end
   end
