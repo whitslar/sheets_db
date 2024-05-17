@@ -374,7 +374,7 @@ RSpec.describe SheetsDB::Worksheet do
     end
 
     it "returns BigDecimal value if type is Decimal" do
-      expect(subject.convert_value("1.54", { type: :Decimal })).to eq(BigDecimal.new("1.54"))
+      expect(subject.convert_value("1.54", { type: :Decimal })).to eq(BigDecimal("1.54"))
     end
 
     it "returns DateTime value if type is DateTime" do
