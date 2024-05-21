@@ -1,7 +1,8 @@
 module SheetsDB
   class Spreadsheet < Resource
     class WorksheetAssociationAlreadyRegisteredError < StandardError; end
-    class WorksheetNotFoundError < StandardError; end
+    class WorksheetNotFoundError < Resource::ChildResourceNotFoundError; end
+    class LastWorksheetCannotBeDeletedError < StandardError; end
 
     set_resource_type GoogleDrive::Spreadsheet
 
@@ -59,16 +60,46 @@ module SheetsDB
     end
 
     def set_up_worksheet!(google_drive_resource:, type: nil)
+      wrap_worksheet(google_drive_resource: google_drive_resource, type: type).set_up!
+    end
+
+    def wrap_worksheet(google_drive_resource:, type: nil)
       Worksheet.new(
         google_drive_resource: google_drive_resource,
         spreadsheet: self,
         type: type
-      ).set_up!
+      )
+    end
+
+    def find_worksheet(title:, type: nil)
+      find_worksheet!(title: title, type: type)
+    rescue WorksheetNotFoundError
+      nil
+    end
+
+    def find_worksheet!(title:, type: nil)
+      find_and_setup_worksheet!(title: title, type: type, create: false)
     end
 
     def find_or_create_worksheet!(title:, type: nil)
-      resource = google_drive_worksheet_by_title(title, create: true)
+      find_and_setup_worksheet!(title: title, type: type, create: true)
+    end
+
+    def find_and_setup_worksheet!(title:, type: nil, create: false)
+      resource = google_drive_worksheet_by_title(title, create: create)
       set_up_worksheet!(google_drive_resource: resource, type: type)
+    rescue ChildResourceNotFoundError
+      raise WorksheetNotFoundError
+    end
+
+    def clean_up_default_worksheet!(force: false)
+      default_sheet = google_drive_resource.worksheet_by_title("Sheet1")
+      return unless default_sheet
+
+      raise LastWorksheetCannotBeDeletedError if google_drive_resource.worksheets.count == 1
+
+      wrap_worksheet(google_drive_resource: default_sheet).
+        delete_google_drive_resource!(force: force)
     end
 
     def google_drive_worksheet_by_title(title, **kwargs)

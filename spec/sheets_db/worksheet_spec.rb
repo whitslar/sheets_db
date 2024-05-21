@@ -23,6 +23,12 @@ RSpec.describe SheetsDB::Worksheet do
     end
   end
 
+  describe "#title" do
+    it "returns title from google_drive_resource" do
+      expect(subject.title).to eq("The Worksheet")
+    end
+  end
+
   describe "#set_up!" do
     it "seeds column headers if sheet is totally empty" do
       allow(raw_worksheet).to receive(:num_rows).and_return(0)
@@ -511,9 +517,28 @@ RSpec.describe SheetsDB::Worksheet do
 
   describe "#delete_google_drive_resource!" do
     it "deletes google_drive_resource and reloads spreadsheet" do
+      allow(raw_worksheet).to receive(:num_rows).and_return(0)
       expect(raw_worksheet).to receive(:delete)
       expect(spreadsheet).to receive(:reload!)
       subject.delete_google_drive_resource!
+      expect(subject.google_drive_resource).to be_nil
+    end
+
+    it "raises exception if rows exist" do
+      allow(raw_worksheet).to receive(:num_rows).and_return(1)
+      expect(raw_worksheet).not_to receive(:delete)
+      expect(spreadsheet).not_to receive(:reload!)
+      expect {
+        subject.delete_google_drive_resource!
+      }.to raise_error(described_class::WorksheetContainsDataError)
+      expect(subject.google_drive_resource).to eq(raw_worksheet)
+    end
+
+    it "forces deletion if force = true even if rows exist" do
+      allow(raw_worksheet).to receive(:num_rows).and_return(1)
+      expect(raw_worksheet).to receive(:delete)
+      expect(spreadsheet).to receive(:reload!)
+      subject.delete_google_drive_resource!(force: true)
       expect(subject.google_drive_resource).to be_nil
     end
   end

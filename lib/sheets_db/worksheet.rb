@@ -5,15 +5,18 @@ require_relative "worksheet/row"
 module SheetsDB
   class Worksheet
     class ColumnNotFoundError < StandardError; end
+    class WorksheetContainsDataError < StandardError; end
 
     include Enumerable
+    extend Forwardable
 
-    attr_reader :spreadsheet, :worksheet_title, :google_drive_resource, :synchronizing
+    attr_reader :spreadsheet, :google_drive_resource, :synchronizing
+
+    def_delegator :google_drive_resource, :title
 
     def initialize(spreadsheet:, google_drive_resource:, type: nil)
       @spreadsheet = spreadsheet
       @google_drive_resource = google_drive_resource
-      @worksheet_title = google_drive_resource.title
       @type = type
       @synchronizing = true
     end
@@ -243,7 +246,9 @@ module SheetsDB
       enable_synchronization!
     end
 
-    def delete_google_drive_resource!
+    def delete_google_drive_resource!(force: false)
+      raise WorksheetContainsDataError if google_drive_resource.num_rows.nonzero? && !force
+
       google_drive_resource.delete
       @google_drive_resource = nil
       spreadsheet.reload!
