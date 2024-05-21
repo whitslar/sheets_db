@@ -1,5 +1,7 @@
 module SheetsDB
   class Collection < Resource
+    class SpreadsheetNotFoundError < Resource::ChildResourceNotFoundError; end
+
     set_resource_type GoogleDrive::Collection
 
     class << self
@@ -24,6 +26,26 @@ module SheetsDB
       define_method :"google_drive_#{child_resource_type}_by_title" do |title, **kwargs|
         find_child_google_drive_resource_by(type: child_resource_type, title: title, **kwargs)
       end
+    end
+
+    def find_spreadsheet(title:)
+      find_spreadsheet!(title: title)
+    rescue ChildResourceNotFoundError
+      nil
+    end
+
+    def find_spreadsheet!(title:)
+      find_and_wrap_spreadsheet!(title: title, create: false)
+    end
+
+    def find_or_create_spreadsheet!(title:)
+      find_and_wrap_spreadsheet!(title: title, create: true)
+    end
+
+    def find_and_wrap_spreadsheet!(title:, create: false)
+      Spreadsheet.new(google_drive_spreadsheet_by_title(title, create: create))
+    rescue ChildResourceNotFoundError
+      raise SpreadsheetNotFoundError
     end
 
     def spreadsheets

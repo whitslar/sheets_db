@@ -74,6 +74,98 @@ RSpec.describe SheetsDB::Collection do
     end
   end
 
+  describe "#find_spreadsheet" do
+    it "returns result of #find_spreadsheet!" do
+      allow(subject).to receive(:find_spreadsheet!).
+        with(title: :the_title).
+        and_return(:the_sheet)
+      expect(subject.find_spreadsheet(title: :the_title)).to eq(:the_sheet)
+    end
+
+    it "returns nil if #find_spreadsheet! raises ChildResourceNotFoundError" do
+      allow(subject).to receive(:find_spreadsheet!).
+        with(title: :the_title).
+        and_raise(described_class::ChildResourceNotFoundError)
+      expect(subject.find_spreadsheet(title: :the_title)).to be_nil
+    end
+  end
+
+  describe "#find_spreadsheet!" do
+    it "returns result of #find_and_wrap_spreadsheet! with create false" do
+      allow(subject).to receive(:find_and_wrap_spreadsheet!).
+        with(title: :the_title, create: false).
+        and_return(:the_sheet)
+      expect(subject.find_spreadsheet!(title: :the_title)).to eq(:the_sheet)
+    end
+
+    it "bubbles exception if #find_and_wrap_spreadsheet! raises ChildResourceNotFoundError" do
+      allow(subject).to receive(:find_and_wrap_spreadsheet!).
+        with(title: :the_title, create: false).
+        and_raise(described_class::ChildResourceNotFoundError)
+      expect {
+        subject.find_spreadsheet!(title: :the_title)
+      }.to raise_error(described_class::ChildResourceNotFoundError)
+    end
+  end
+
+  describe "#find_or_create_spreadsheet!" do
+    it "returns result of #find_and_wrap_spreadsheet! with create true" do
+      allow(subject).to receive(:find_and_wrap_spreadsheet!).
+        with(title: :the_title, create: true).
+        and_return(:the_sheet)
+      expect(subject.find_or_create_spreadsheet!(title: :the_title)).to eq(:the_sheet)
+    end
+  end
+
+  describe "#find_and_wrap_spreadsheet!" do
+    let(:create) { false }
+
+    before do
+      allow(subject).to receive(:google_drive_spreadsheet_by_title).
+        with(:the_title, create: create).
+        and_return(:raw_spreadsheet)
+      allow(SheetsDB::Spreadsheet).to receive(:new).
+        with(:raw_spreadsheet).
+        and_return(:the_set_up_sheet)
+    end
+
+    context "when not creating" do
+      it "gets spreadsheet by title and sets it up" do
+        expect(
+          subject.find_and_wrap_spreadsheet!(title: :the_title, create: create)
+        ).to eq(:the_set_up_sheet)
+      end
+
+      context "when no worksheet found" do
+        it "raises ChildResourceNotFoundError" do
+          allow(subject).to receive(:google_drive_spreadsheet_by_title).
+            with(:the_title, create: create).
+            and_raise(SheetsDB::Resource::ChildResourceNotFoundError)
+
+          expect {
+            subject.find_and_wrap_spreadsheet!(title: :the_title, create: create)
+          }.to raise_error(described_class::SpreadsheetNotFoundError)
+        end
+      end
+    end
+
+    context "when not creating" do
+      let(:create) { true }
+
+      it "gets spreadsheet by title, creating if necessary, and sets it up" do
+        expect(
+          subject.find_and_wrap_spreadsheet!(title: :the_title, create: create)
+        ).to eq(:the_set_up_sheet)
+      end
+    end
+
+    it "defaults to create = false" do
+      expect(
+        subject.find_and_wrap_spreadsheet!(title: :the_title)
+      ).to eq(:the_set_up_sheet)
+    end
+  end
+
   describe "#spreadsheets" do
     it "returns base Spreadsheet instance for each of collection's spreadsheet resources" do
       allow(raw_collection).to receive(:spreadsheets).and_return([:s1, :s2])

@@ -100,8 +100,8 @@ RSpec.describe SheetsDB::Spreadsheet do
     end
 
     it "instantiates and sets up worksheet for given resource and type" do
-      allow(SheetsDB::Worksheet).to receive(:new).
-        with(google_drive_resource: :raw_worksheet, spreadsheet: subject, type: :the_type).
+      allow(subject).to receive(:wrap_worksheet).
+        with(google_drive_resource: :raw_worksheet, type: :the_type).
         and_return(worksheet)
       expect(
         subject.set_up_worksheet!(google_drive_resource: :raw_worksheet, type: :the_type)
@@ -109,8 +109,8 @@ RSpec.describe SheetsDB::Spreadsheet do
     end
 
     it "defaults to nil type" do
-      allow(SheetsDB::Worksheet).to receive(:new).
-        with(google_drive_resource: :raw_worksheet, spreadsheet: subject, type: nil).
+      allow(subject).to receive(:wrap_worksheet).
+        with(google_drive_resource: :raw_worksheet, type: nil).
         and_return(worksheet)
       expect(
         subject.set_up_worksheet!(google_drive_resource: :raw_worksheet)
@@ -118,29 +118,189 @@ RSpec.describe SheetsDB::Spreadsheet do
     end
   end
 
-  describe "#find_or_create_worksheet!" do
-    before do
-      allow(subject).to receive(:google_drive_worksheet_by_title).
-        with(:the_title, create: true).
-        and_return(:raw_worksheet)
-    end
-
-    it "finds or creates google drive worksheet and sets it up" do
-      allow(subject).to receive(:set_up_worksheet!).
-        with(google_drive_resource: :raw_worksheet, type: :the_type).
-        and_return(:the_set_up_sheet)
+  describe "#wrap_worksheet" do
+    it "instantiates and worksheet for given resource and type" do
+      allow(SheetsDB::Worksheet).to receive(:new).
+        with(google_drive_resource: :raw_worksheet, spreadsheet: subject, type: :the_type).
+        and_return(:the_wrapped_sheet)
       expect(
-        subject.find_or_create_worksheet!(title: :the_title, type: :the_type)
-      ).to eq(:the_set_up_sheet)
+        subject.wrap_worksheet(google_drive_resource: :raw_worksheet, type: :the_type)
+      ).to eq(:the_wrapped_sheet)
     end
 
     it "defaults to nil type" do
+      allow(SheetsDB::Worksheet).to receive(:new).
+        with(google_drive_resource: :raw_worksheet, spreadsheet: subject, type: nil).
+        and_return(:the_wrapped_sheet)
+      expect(
+        subject.wrap_worksheet(google_drive_resource: :raw_worksheet)
+      ).to eq(:the_wrapped_sheet)
+    end
+  end
+
+  describe "#find_worksheet" do
+    it "returns result of #find_worksheet!" do
+      allow(subject).to receive(:find_worksheet!).
+        with(title: :the_title, type: :the_type).
+        and_return(:the_sheet)
+      expect(subject.find_worksheet(title: :the_title, type: :the_type)).to eq(:the_sheet)
+    end
+
+    it "defaults to nil type" do
+      allow(subject).to receive(:find_worksheet!).
+        with(title: :the_title, type: nil).
+        and_return(:the_sheet)
+      expect(subject.find_worksheet(title: :the_title)).to eq(:the_sheet)
+    end
+
+    it "returns nil if #find_worksheet! raises WorksheetNotFoundError" do
+      allow(subject).to receive(:find_worksheet!).
+        with(title: :the_title, type: :the_type).
+        and_raise(described_class::WorksheetNotFoundError)
+      expect(subject.find_worksheet(title: :the_title, type: :the_type)).to be_nil
+    end
+  end
+
+  describe "#find_worksheet!" do
+    it "returns result of #find_and_setup_worksheet! with create false" do
+      allow(subject).to receive(:find_and_setup_worksheet!).
+        with(title: :the_title, type: :the_type, create: false).
+        and_return(:the_sheet)
+      expect(subject.find_worksheet!(title: :the_title, type: :the_type)).to eq(:the_sheet)
+    end
+
+    it "defaults to nil type" do
+      allow(subject).to receive(:find_and_setup_worksheet!).
+        with(title: :the_title, type: nil, create: false).
+        and_return(:the_sheet)
+      expect(subject.find_worksheet!(title: :the_title)).to eq(:the_sheet)
+    end
+
+    it "bubbles exception if #find_and_setup_worksheet! raises WorksheetNotFoundError" do
+      allow(subject).to receive(:find_and_setup_worksheet!).
+        with(title: :the_title, type: :the_type, create: false).
+        and_raise(described_class::WorksheetNotFoundError)
+      expect {
+        subject.find_worksheet!(title: :the_title, type: :the_type)
+      }.to raise_error(described_class::WorksheetNotFoundError)
+    end
+  end
+
+  describe "#find_or_create_worksheet!" do
+    it "returns result of #find_and_setup_worksheet! with create true" do
+      allow(subject).to receive(:find_and_setup_worksheet!).
+        with(title: :the_title, type: :the_type, create: true).
+        and_return(:the_sheet)
+      expect(subject.find_or_create_worksheet!(title: :the_title, type: :the_type)).to eq(:the_sheet)
+    end
+
+    it "defaults to nil type" do
+      allow(subject).to receive(:find_and_setup_worksheet!).
+        with(title: :the_title, type: nil, create: true).
+        and_return(:the_sheet)
+      expect(subject.find_or_create_worksheet!(title: :the_title)).to eq(:the_sheet)
+    end
+  end
+
+  describe "#find_and_setup_worksheet!" do
+    let(:type) { :the_type }
+    let(:create) { false }
+
+    before do
+      allow(subject).to receive(:google_drive_worksheet_by_title).
+        with(:the_title, create: create).
+        and_return(:raw_worksheet)
+      allow(subject).to receive(:set_up_worksheet!).
+        with(google_drive_resource: :raw_worksheet, type: type).
+        and_return(:the_set_up_sheet)
+    end
+
+    context "when not creating" do
+      it "gets worksheet by title and sets it up" do
+        expect(
+          subject.find_and_setup_worksheet!(title: :the_title, type: :the_type, create: create)
+        ).to eq(:the_set_up_sheet)
+      end
+
+      context "when no worksheet found" do
+        it "raises WorksheetNotFoundError" do
+          allow(subject).to receive(:google_drive_worksheet_by_title).
+            with(:the_title, create: create).
+            and_raise(SheetsDB::Resource::ChildResourceNotFoundError)
+
+          expect {
+            subject.find_and_setup_worksheet!(title: :the_title, type: :the_type, create: create)
+          }.to raise_error(described_class::WorksheetNotFoundError)
+        end
+      end
+    end
+
+    context "when not creating" do
+      let(:create) { true }
+
+      it "gets worksheet by title, creating if necessary, and sets it up" do
+        expect(
+          subject.find_and_setup_worksheet!(title: :the_title, type: :the_type, create: create)
+        ).to eq(:the_set_up_sheet)
+      end
+    end
+
+    it "defaults to nil type and create = false" do
       allow(subject).to receive(:set_up_worksheet!).
         with(google_drive_resource: :raw_worksheet, type: nil).
         and_return(:the_set_up_sheet)
       expect(
-        subject.find_or_create_worksheet!(title: :the_title)
+        subject.find_and_setup_worksheet!(title: :the_title)
       ).to eq(:the_set_up_sheet)
+    end
+  end
+
+  describe "#clean_up_default_worksheet!" do
+    context "when default sheet exists" do
+      let(:default_wrapped_worksheet) { instance_double(SheetsDB::Worksheet) }
+
+      before do
+        allow(subject).to receive(:wrap_worksheet).
+          with(google_drive_resource: :sheet1).
+          and_return(default_wrapped_worksheet)
+        allow(raw_file).to receive(:worksheets).and_return(Array.new(worksheet_count))
+        allow(raw_file).to receive(:worksheet_by_title).with("Sheet1").and_return(:sheet1)
+      end
+
+      context "when worksheet is not the last worksheet" do
+        let(:worksheet_count) { 2 }
+
+        it "calls delete_google_drive_resource! on new Worksheet with default sheet" do
+          expect(default_wrapped_worksheet).to receive(:delete_google_drive_resource!).
+            with(force: :maybe)
+          subject.clean_up_default_worksheet!(force: :maybe)
+        end
+
+        it "defaults to force: false when calling delete_google_drive_resource!" do
+          expect(default_wrapped_worksheet).to receive(:delete_google_drive_resource!).
+            with(force: false)
+          subject.clean_up_default_worksheet!
+        end
+      end
+
+      context "when worksheet is the last worksheet" do
+        let(:worksheet_count) { 1 }
+
+        it "raises exception" do
+          expect(default_wrapped_worksheet).not_to receive(:delete_google_drive_resource!)
+          expect {
+            subject.clean_up_default_worksheet!
+          }.to raise_error(described_class::LastWorksheetCannotBeDeletedError)
+        end
+      end
+    end
+
+    context "when default sheet does not exist" do
+      it "does nothing" do
+        allow(raw_file).to receive(:worksheet_by_title).with("Sheet1").and_return(nil)
+        expect(SheetsDB::Worksheet).not_to receive(:new)
+        subject.clean_up_default_worksheet!
+      end
     end
   end
 
