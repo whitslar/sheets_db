@@ -1,5 +1,5 @@
 RSpec.describe SheetsDB::Resource do
-  let(:raw_file) { GoogleDriveSessionProxy::DUMMY_FILES[:file]}
+  let(:raw_file) { GoogleDrive::File.new(self, "file") }
   let(:test_class) { Class.new(described_class) }
 
   subject { test_class.new(raw_file) }
@@ -19,15 +19,117 @@ RSpec.describe SheetsDB::Resource do
     end
   end
 
-  describe ".find_by_id" do
-    it "returns instance for given id" do
-      expect(test_class.find_by_id(:file)).to eq(subject)
+  describe ".find" do
+    context "when valid URL provided" do
+      before do
+        allow(test_class).to receive(:find_by_url).
+          with(:the_id_or_url, session: session).
+          and_return(:the_resource)
+      end
+
+      context "when session is not provided" do
+        let(:session) { SheetsDB::Session.default }
+
+        it "returns result from find_by_url using default session" do
+          expect(test_class.find(:the_id_or_url)).to eq(:the_resource)
+        end
+      end
+
+      context "when session is overridden" do
+        let(:session) { instance_double(SheetsDB::Session) }
+
+        it "returns result from find_by_url using provided session" do
+          expect(test_class.find(:the_id_or_url, session: session)).to eq(:the_resource)
+        end
+      end
     end
 
-    it "raises error if id does not represent class's resource type" do
+    context "when valid URL not provided" do
+      before do
+        allow(test_class).to receive(:find_by_url).
+          with(:the_id_or_url, session: session).
+          and_raise(SheetsDB::Session::InvalidGoogleDriveUrlError)
+        allow(test_class).to receive(:find_by_id).
+          with(:the_id_or_url, session: session).
+          and_return(:the_resource)
+      end
+
+      context "when session is not provided" do
+        let(:session) { SheetsDB::Session.default }
+
+        it "returns result from find_by_url using default session" do
+          expect(test_class.find(:the_id_or_url)).to eq(:the_resource)
+        end
+      end
+
+      context "when session is overridden" do
+        let(:session) { instance_double(SheetsDB::Session) }
+
+        it "returns result from find_by_url using provided session" do
+          expect(test_class.find(:the_id_or_url, session: session)).to eq(:the_resource)
+        end
+      end
+    end
+  end
+
+  describe ".find_by_id" do
+    before do
+      allow(session).to receive(:raw_file_by_id).with(:the_id).and_return(:the_raw_file)
+      allow(test_class).to receive(:wrap_google_drive_resource).with(:the_raw_file).and_return(:the_instance)
+    end
+
+    context "when session is not provided" do
+      let(:session) { SheetsDB::Session.default }
+
+      it "returns wrapped raw file found via given url, using default session" do
+        expect(test_class.find_by_id(:the_id)).to eq(:the_instance)
+      end
+    end
+
+    context "when session is overridden" do
+      let(:session) { instance_double(SheetsDB::Session) }
+
+      it "returns wrapped raw file found via given url, using provided session" do
+        expect(test_class.find_by_id(:the_id, session: session)).to eq(:the_instance)
+      end
+    end
+  end
+
+  describe ".find_by_url" do
+    before do
+      allow(session).to receive(:raw_file_by_url).with(:the_url).and_return(:the_raw_file)
+      allow(test_class).to receive(:wrap_google_drive_resource).with(:the_raw_file).and_return(:the_instance)
+    end
+
+    context "when session is not provided" do
+      let(:session) { SheetsDB::Session.default }
+
+      it "returns wrapped raw file found via given url, using default session" do
+        expect(test_class.find_by_url(:the_url)).to eq(:the_instance)
+      end
+    end
+
+    context "when session is overridden" do
+      let(:session) { instance_double(SheetsDB::Session) }
+
+      it "returns wrapped raw file found via given url, using provided session" do
+        expect(test_class.find_by_url(:the_url, session: session)).to eq(:the_instance)
+      end
+    end
+  end
+
+  describe "#wrap_google_drive_resource" do
+    it "returns instance for given resource without type checking, if no resource type" do
+      allow(test_class).to receive(:resource_type).and_return(nil)
+      allow(test_class).to receive(:new).with(raw_file).and_return(:the_instance)
+      expect(test_class.wrap_google_drive_resource(raw_file)).to eq(:the_instance)
+    end
+
+    it "raises error if given resource does not match class's resource_type" do
       allow(test_class).to receive(:resource_type).and_return(GoogleDrive::Spreadsheet)
+      allow(raw_file).to receive(:human_url).and_return("the_human_url")
       expect {
-        test_class.find_by_id(:file)
+        test_class.wrap_google_drive_resource(raw_file)
       }.to raise_error(described_class::ResourceTypeMismatchError)
     end
   end

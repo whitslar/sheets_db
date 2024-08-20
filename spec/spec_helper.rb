@@ -12,6 +12,6 @@ RSpec.configure do |config|
   config.order = 'random'
 
   config.before(:suite) do
-    SheetsDB::Session.default = SheetsDB::Session.new(GoogleDriveSessionProxy.new)
+    SheetsDB::Session.default = SheetsDB::Session.new(instance_double(GoogleDrive::Session))
   end
 end

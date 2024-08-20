@@ -4,6 +4,7 @@ module SheetsDB
   class Session
     class IllegalDefaultError < StandardError; end
     class NoDefaultSetError < StandardError; end
+    class InvalidGoogleDriveUrlError < ArgumentError; end
 
     def self.default=(default)
       unless default.is_a?(self)
@@ -29,6 +30,13 @@ module SheetsDB
 
     def raw_file_by_id(id)
       @google_drive_session.file_by_id(id)
+    end
+
+    def raw_file_by_url(url)
+      @google_drive_session.file_by_url(url)
+    rescue GoogleDrive::Error => e
+      (raise InvalidGoogleDriveUrlError, url) if e.message.match(/not a known Google Drive URL/)
+      raise
     end
   end
 end

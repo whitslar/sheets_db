@@ -1,5 +1,5 @@
 RSpec.describe SheetsDB::Session do
-  let(:wrapped_session) { GoogleDriveSessionProxy.new }
+  let(:wrapped_session) { instance_double(GoogleDrive::Session) }
   subject { SheetsDB::Session.new(wrapped_session) }
 
   context "clearing default Session" do
@@ -50,6 +50,30 @@ RSpec.describe SheetsDB::Session do
     it "delegates to #file_by_id from wrapped session" do
       allow(wrapped_session).to receive(:file_by_id).with(:the_id).and_return(:raw_file)
       expect(subject.raw_file_by_id(:the_id)).to eq :raw_file
+    end
+  end
+
+  describe "#raw_file_by_url" do
+    it "delegates to #file_by_url from wrapped session" do
+      allow(wrapped_session).to receive(:file_by_url).with(:the_url).and_return(:raw_file)
+      expect(subject.raw_file_by_url(:the_url)).to eq :raw_file
+    end
+
+    it "raises InvalidGoogleDriveUrlError if URL is not recognized" do
+      allow(wrapped_session).to receive(:file_by_url).
+        with(:the_url).
+        and_raise(GoogleDrive::Error, "that is not a known Google Drive URL")
+      expect {
+        subject.raw_file_by_url(:the_url)
+      }.to raise_error(described_class::InvalidGoogleDriveUrlError, "the_url")
+    end
+
+    it "bubbles error through if not an unknown URL error" do
+      error = GoogleDrive::Error.new("something totally different")
+      allow(wrapped_session).to receive(:file_by_url).with(:the_url).and_raise(error)
+      expect {
+        subject.raw_file_by_url(:the_url)
+      }.to raise_error(error)
     end
   end
 end
