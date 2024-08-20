@@ -2,7 +2,7 @@ require 'bigdecimal'
 
 RSpec.describe SheetsDB::Worksheet do
   let(:raw_worksheet) { instance_double(GoogleDrive::Worksheet, title: "The Worksheet") }
-  let(:spreadsheet) { GoogleDriveSessionProxy::DUMMY_FILES[:spreadsheet] }
+  let(:spreadsheet) { GoogleDrive::Spreadsheet.new(self, "spreadsheet") }
   let(:row_class) { Class.new(SheetsDB::Worksheet::Row) }
 
   subject { described_class.new(spreadsheet: spreadsheet, google_drive_resource: raw_worksheet, type: row_class) }

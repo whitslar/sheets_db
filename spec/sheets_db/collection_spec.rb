@@ -1,6 +1,6 @@
 RSpec.describe SheetsDB::Collection do
   let(:test_class) { Class.new(described_class) }
-  let(:raw_collection) { GoogleDriveSessionProxy::DUMMY_FILES[:collection] }
+  let(:raw_collection) { GoogleDrive::Collection.new(self, "collection") }
 
   subject { test_class.new(raw_collection) }
 

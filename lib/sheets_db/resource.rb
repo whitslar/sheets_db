@@ -16,10 +16,26 @@ module SheetsDB
         @resource_type = resource_type
       end
 
+      def find(id_or_url, session: SheetsDB::Session.default)
+        find_by_url(id_or_url, session: session)
+      rescue SheetsDB::Session::InvalidGoogleDriveUrlError
+        find_by_id(id_or_url, session: session)
+      end
+
+      def find_by_url(url, session: SheetsDB::Session.default)
+        wrap_google_drive_resource(session.raw_file_by_url(url))
+      end
+
       def find_by_id(id, session: SheetsDB::Session.default)
-        google_drive_resource = session.raw_file_by_id(id)
+        wrap_google_drive_resource(session.raw_file_by_id(id))
+      end
+
+      def wrap_google_drive_resource(google_drive_resource)
         if resource_type && !google_drive_resource.is_a?(resource_type)
-          fail(ResourceTypeMismatchError, "The file with id #{id} is not a #{resource_type}")
+          fail(
+            ResourceTypeMismatchError,
+            "The file #{google_drive_resource.human_url} is not a #{resource_type}"
+          )
         end
         new(google_drive_resource)
       end
