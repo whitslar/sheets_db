@@ -4,6 +4,8 @@ module SheetsDB
     class WorksheetNotFoundError < Resource::ChildResourceNotFoundError; end
     class LastWorksheetCannotBeDeletedError < StandardError; end
 
+    SHEET_URL_REGEX = /spreadsheets\/d\/(?<sheet_id>[^\/]+)\//.freeze
+
     set_resource_type GoogleDrive::Spreadsheet
 
     class << self
@@ -27,6 +29,10 @@ module SheetsDB
         define_method(resource) do
           worksheet_association(resource, **kwargs)
         end
+      end
+
+      def extract_id_from_string(id_string)
+        (matches = SHEET_URL_REGEX.match(id_string)) ? matches[:sheet_id] : id_string.gsub("/", "")
       end
     end
 

@@ -25,6 +25,26 @@ RSpec.describe SheetsDB::Spreadsheet do
     end
   end
 
+  describe ".extract_id_from_string" do
+    it "returns the id from a Google Drive URL" do
+      expect(
+        test_class.extract_id_from_string(
+          "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j/edit#gid=0"
+        )
+      ).to eq("1a2b3c4d5e6f7g8h9i0j")
+    end
+
+    it "returns the id if not a Google Drive URL" do
+      expect(test_class.extract_id_from_string("1a2b3c4d5e6f7g8h9i0j")).
+        to eq("1a2b3c4d5e6f7g8h9i0j")
+    end
+
+    it "removes all slashes around the ID" do
+      expect(test_class.extract_id_from_string("/1a2b3c4d5e6f7g8h9i0j/")).
+        to eq("1a2b3c4d5e6f7g8h9i0j")
+    end
+  end
+
   describe "#find_association_by_id" do
     it "singular proxy for find_associations_by_ids" do
       allow(subject).to receive(:find_associations_by_ids).
