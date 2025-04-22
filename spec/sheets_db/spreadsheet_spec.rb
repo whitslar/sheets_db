@@ -4,6 +4,10 @@ RSpec.describe SheetsDB::Spreadsheet do
 
   subject { test_class.new(raw_file) }
 
+  before do
+    stub_const("SheetsDB::Spreadsheet::DEFAULT_WORKSHEET_TITLE", "TheDefaultWorksheetTitle")
+  end
+
   it "is a SheetsDB::Resource" do
     expect(subject).to be_a(SheetsDB::Resource)
   end
@@ -22,6 +26,74 @@ RSpec.describe SheetsDB::Spreadsheet do
         test_class.has_many :widgets, worksheet_name: "Widgets", class_name: :collection_class
         test_class.has_many :widgets, worksheet_name: "Widgets2", class_name: :collection_class
       }.to raise_error(described_class::WorksheetAssociationAlreadyRegisteredError)
+    end
+  end
+
+  describe ".extract_id_from_string" do
+    {
+      "a full URL" => "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j/edit#gid=0",
+      "a URL without end slash" => "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j",
+      "a string that's just the ID" => "1a2b3c4d5e6f7g8h9i0j",
+      "a string with slashes around the ID" => "/1a2b3c4d5e6f7g8h9i0j/"
+    }.each do |description, string|
+      it "returns the ID from #{description}" do
+        expect(test_class.extract_id_from_string(string)).to eq("1a2b3c4d5e6f7g8h9i0j")
+      end
+    end
+  end
+
+  describe "#write_raw_data_to_worksheet!" do
+    let(:the_worksheet) { instance_double(SheetsDB::Worksheet) }
+
+    it "writes data to the default worksheet" do
+      allow(subject).to receive(:find_or_create_worksheet!).
+        with(title: "TheDefaultWorksheetTitle").
+        and_return(the_worksheet)
+      expect(the_worksheet).to receive(:write_raw_data!).with(:data, rewrite: false)
+      subject.write_raw_data_to_worksheet!(:data)
+    end
+
+    it "rewrites if given option" do
+      allow(subject).to receive(:find_or_create_worksheet!).
+        with(title: "TheDefaultWorksheetTitle").
+        and_return(the_worksheet)
+      expect(the_worksheet).to receive(:write_raw_data!).with(:data, rewrite: true)
+      subject.write_raw_data_to_worksheet!(:data, rewrite: true)
+    end
+
+    it "writes data to the specified worksheet" do
+      allow(subject).to receive(:find_or_create_worksheet!).
+        with(title: "OtherSheet").
+        and_return(the_worksheet)
+      expect(the_worksheet).to receive(:write_raw_data!).with(:data, rewrite: :maybe)
+      subject.write_raw_data_to_worksheet!(:data, worksheet_title: "OtherSheet", rewrite: :maybe)
+    end
+  end
+
+  describe "#existing_raw_data_from_worksheet" do
+    let(:the_worksheet) { instance_double(SheetsDB::Worksheet) }
+    let(:worksheet_title) { "TheDefaultWorksheetTitle" }
+
+    before do
+      allow(subject).to receive(:find_worksheet!).with(title: worksheet_title).
+        and_return(the_worksheet)
+      allow(the_worksheet).to receive(:existing_raw_data).and_return(:the_raw_data)
+    end
+
+    it "reads data from the default worksheet" do
+      expect(
+        subject.existing_raw_data_from_worksheet
+      ).to eq(:the_raw_data)
+    end
+
+    context "when given a worksheet title" do
+      let(:worksheet_title) { "DifferentSheet" }
+
+      it "reads data from the specified worksheet" do
+        expect(
+          subject.existing_raw_data_from_worksheet(worksheet_title: worksheet_title)
+        ).to eq(:the_raw_data)
+      end
     end
   end
 
@@ -256,7 +328,9 @@ RSpec.describe SheetsDB::Spreadsheet do
           with(google_drive_resource: :sheet1).
           and_return(default_wrapped_worksheet)
         allow(raw_file).to receive(:worksheets).and_return(Array.new(worksheet_count))
-        allow(raw_file).to receive(:worksheet_by_title).with("Sheet1").and_return(:sheet1)
+        allow(raw_file).to receive(:worksheet_by_title).
+          with("TheDefaultWorksheetTitle").
+          and_return(:sheet1)
       end
 
       context "when worksheet is not the last worksheet" do
@@ -289,7 +363,9 @@ RSpec.describe SheetsDB::Spreadsheet do
 
     context "when default sheet does not exist" do
       it "does nothing" do
-        allow(raw_file).to receive(:worksheet_by_title).with("Sheet1").and_return(nil)
+        allow(raw_file).to receive(:worksheet_by_title).
+          with("TheDefaultWorksheetTitle").
+          and_return(nil)
         expect(SheetsDB::Worksheet).not_to receive(:new)
         subject.clean_up_default_worksheet!
       end

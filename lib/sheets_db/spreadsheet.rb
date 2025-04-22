@@ -4,6 +4,9 @@ module SheetsDB
     class WorksheetNotFoundError < Resource::ChildResourceNotFoundError; end
     class LastWorksheetCannotBeDeletedError < StandardError; end
 
+    SHEET_URL_REGEX = /spreadsheets\/d\/(?<sheet_id>[^\/]+)/.freeze
+    DEFAULT_WORKSHEET_TITLE = "Sheet1".freeze
+
     set_resource_type GoogleDrive::Spreadsheet
 
     class << self
@@ -28,6 +31,19 @@ module SheetsDB
           worksheet_association(resource, **kwargs)
         end
       end
+
+      def extract_id_from_string(id_string)
+        (matches = SHEET_URL_REGEX.match(id_string)) ? matches[:sheet_id] : id_string.gsub("/", "")
+      end
+    end
+
+    def write_raw_data_to_worksheet!(data, worksheet_title: nil, rewrite: false)
+      find_or_create_worksheet!(title: worksheet_title || DEFAULT_WORKSHEET_TITLE).
+        write_raw_data!(data, rewrite: rewrite)
+    end
+
+    def existing_raw_data_from_worksheet(worksheet_title: nil)
+      find_worksheet!(title: worksheet_title || DEFAULT_WORKSHEET_TITLE).existing_raw_data
     end
 
     def find_association_by_id(association_name, id)
@@ -93,7 +109,7 @@ module SheetsDB
     end
 
     def clean_up_default_worksheet!(force: false)
-      default_sheet = google_drive_resource.worksheet_by_title("Sheet1")
+      default_sheet = google_drive_resource.worksheet_by_title(DEFAULT_WORKSHEET_TITLE)
       return unless default_sheet
 
       raise LastWorksheetCannotBeDeletedError if google_drive_resource.worksheets.count == 1
