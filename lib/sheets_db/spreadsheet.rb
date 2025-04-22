@@ -4,7 +4,7 @@ module SheetsDB
     class WorksheetNotFoundError < Resource::ChildResourceNotFoundError; end
     class LastWorksheetCannotBeDeletedError < StandardError; end
 
-    SHEET_URL_REGEX = /spreadsheets\/d\/(?<sheet_id>[^\/]+)\//.freeze
+    SHEET_URL_REGEX = /spreadsheets\/d\/(?<sheet_id>[^\/]+)/.freeze
     DEFAULT_WORKSHEET_TITLE = "Sheet1".freeze
 
     set_resource_type GoogleDrive::Spreadsheet

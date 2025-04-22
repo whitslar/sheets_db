@@ -30,22 +30,15 @@ RSpec.describe SheetsDB::Spreadsheet do
   end
 
   describe ".extract_id_from_string" do
-    it "returns the id from a Google Drive URL" do
-      expect(
-        test_class.extract_id_from_string(
-          "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j/edit#gid=0"
-        )
-      ).to eq("1a2b3c4d5e6f7g8h9i0j")
-    end
-
-    it "returns the id if not a Google Drive URL" do
-      expect(test_class.extract_id_from_string("1a2b3c4d5e6f7g8h9i0j")).
-        to eq("1a2b3c4d5e6f7g8h9i0j")
-    end
-
-    it "removes all slashes around the ID" do
-      expect(test_class.extract_id_from_string("/1a2b3c4d5e6f7g8h9i0j/")).
-        to eq("1a2b3c4d5e6f7g8h9i0j")
+    {
+      "a full URL" => "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j/edit#gid=0",
+      "a URL without end slash" => "https://docs.google.com/spreadsheets/d/1a2b3c4d5e6f7g8h9i0j",
+      "a string that's just the ID" => "1a2b3c4d5e6f7g8h9i0j",
+      "a string with slashes around the ID" => "/1a2b3c4d5e6f7g8h9i0j/"
+    }.each do |description, string|
+      it "returns the ID from #{description}" do
+        expect(test_class.extract_id_from_string(string)).to eq("1a2b3c4d5e6f7g8h9i0j")
+      end
     end
   end
 
