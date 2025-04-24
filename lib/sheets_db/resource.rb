@@ -72,7 +72,7 @@ module SheetsDB
     end
 
     extend Forwardable
-    def_delegators :google_drive_resource, :id, :name
+    def_delegators :google_drive_resource, :id, :name, :human_url
     def_delegator :google_drive_resource, :created_time, :created_at
     def_delegator :google_drive_resource, :modified_time, :updated_at
 

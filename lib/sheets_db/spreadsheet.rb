@@ -33,7 +33,7 @@ module SheetsDB
       end
 
       def extract_id_from_string(id_string)
-        (matches = SHEET_URL_REGEX.match(id_string)) ? matches[:sheet_id] : id_string.gsub("/", "")
+        (matches = SHEET_URL_REGEX.match(id_string)) ? matches[:sheet_id] : id_string&.gsub("/", "")
       end
     end
 

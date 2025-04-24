@@ -148,6 +148,13 @@ RSpec.describe SheetsDB::Resource do
     end
   end
 
+  describe "#human_url" do
+    it "delegates to raw resource" do
+      allow(raw_file).to receive(:human_url).and_return(:foo)
+      expect(subject.human_url).to eq(:foo)
+    end
+  end
+
   describe "#created_at" do
     it "delegates to raw resource #created_time" do
       allow(raw_file).to receive(:created_time).and_return(:foo)
