@@ -40,6 +40,10 @@ RSpec.describe SheetsDB::Spreadsheet do
         expect(test_class.extract_id_from_string(string)).to eq("1a2b3c4d5e6f7g8h9i0j")
       end
     end
+
+    it "returns nil if given nil" do
+      expect(test_class.extract_id_from_string(nil)).to be_nil
+    end
   end
 
   describe "#write_raw_data_to_worksheet!" do

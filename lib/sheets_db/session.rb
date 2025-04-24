@@ -5,6 +5,7 @@ module SheetsDB
     class IllegalDefaultError < StandardError; end
     class NoDefaultSetError < StandardError; end
     class InvalidGoogleDriveUrlError < ArgumentError; end
+    class GoogleDriveIdNotFoundError < ArgumentError; end
 
     def self.default=(default)
       unless default.is_a?(self)
@@ -30,6 +31,9 @@ module SheetsDB
 
     def raw_file_by_id(id)
       @google_drive_session.file_by_id(id)
+    rescue Google::Apis::ClientError => e
+      (raise GoogleDriveIdNotFoundError, id) if e.message.match(/File not found/)
+      raise
     end
 
     def raw_file_by_url(url)
