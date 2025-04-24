@@ -51,6 +51,23 @@ RSpec.describe SheetsDB::Session do
       allow(wrapped_session).to receive(:file_by_id).with(:the_id).and_return(:raw_file)
       expect(subject.raw_file_by_id(:the_id)).to eq :raw_file
     end
+
+    it "raises GoogleDriveIdNotFoundError if ID is not found" do
+      allow(wrapped_session).to receive(:file_by_id).
+        with(:the_id).
+        and_raise(Google::Apis::ClientError, "File not found: the_id")
+      expect {
+        subject.raw_file_by_id(:the_id)
+      }.to raise_error(described_class::GoogleDriveIdNotFoundError, "the_id")
+    end
+
+    it "bubbles error through if not a file not found error" do
+      error = GoogleDrive::Error.new("something totally different")
+      allow(wrapped_session).to receive(:file_by_id).with(:the_id).and_raise(error)
+      expect {
+        subject.raw_file_by_id(:the_id)
+      }.to raise_error(error)
+    end
   end
 
   describe "#raw_file_by_url" do
